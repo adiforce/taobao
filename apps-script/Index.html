@@ -410,7 +410,7 @@ function renderOrders() {
       '<td class="wrap' + (o.dup ? ' dup' : '') + '" style="word-break:break-all">' + esc(o.track) + (o.dup ? ' ⚠重複' : '') + (o.tb ? '<div class="muted">' + esc(o.tb) + '</div>' : '') + '</td>' +
       '<td class="n">' + (noW(o) ? (o.batch ? '<span class="warn">未填</span>' : '<span class="muted">-</span>') : fmt(o.weight)) + '</td><td>' + esc(o.who) + '</td>' +
       '<td class="n">' + fmt(o.cny) + '<div class="muted">× ' + fmt(o.rate, 3) + '</div></td>' +
-      '<td class="n">' + fmt(o.twd) + '</td><td class="n" title="' + (o.share === '' ? '' : '運費占比 ' + fmt(o.share * 100, 1) + '%') + '">' + fmt(o.ship) + '</td><td class="n"><b>' + fmt(o.total) + '</b></td>' +
+      '<td class="n">' + fmt(o.twd) + '</td><td class="n" title="' + (o.share === '' ? '' : '運費權重 ' + fmt(o.share, 5)) + '">' + fmt(o.ship) + '</td><td class="n"><b>' + fmt(o.total) + '</b></td>' +
       '<td class="wrap">' + (lk ? '<a href="' + esc(lk) + '" target="_blank" rel="noopener">' + esc(o.batch) + ' 📦</a>' : esc(o.batch)) + '</td>' +
       '<td><span class="tag s-' + esc(o.status) + '">' + esc(o.status) + '</span></td><td class="wrap muted">' + esc(o.note) + '</td>' +
       '<td><button class="btn sm" onclick="openOrder(' + idq + ')">編輯</button> <button class="btn sm" onclick="openSplit(' + idq + ')">拆單</button> <button class="btn sm danger" onclick="delOrder(' + idq + ')">刪</button></td></tr>';
@@ -518,10 +518,10 @@ function batchDetail(b) {
     gt += tot;
     var paid = D.payments.filter(function (p) { return p.who === w && p.batch === b.name; }).reduce(function (s, p) { return s + (Number(p.amount) || 0); }, 0);
     h += '<div style="margin:10px 0 4px"><b>' + esc(w) + '</b>　' + list.length + ' 筆　商品 ' + fmt(item) + ' ＋ 運費 ' + fmt(ship) + ' ＝ <b>' + fmt(tot) + '</b>' + (paid ? '　<span class="ok">此批已登記付款 ' + fmt(paid) + '</span>' : '') + '</div>';
-    h += '<table style="width:100%"><tr><th>日期</th><th>品名</th><th>運單</th><th class="n">kg</th><th class="n">商品台幣</th><th class="n">運費占比</th><th class="n">運費分攤</th><th class="n">小計</th></tr>';
+    h += '<table style="width:100%"><tr><th>日期</th><th>品名</th><th>運單</th><th class="n">kg</th><th class="n">商品台幣</th><th class="n">運費權重</th><th class="n">運費分攤</th><th class="n">小計</th></tr>';
     list.forEach(function (o) {
       h += '<tr><td>' + esc(o.date) + '</td><td class="wrap">' + esc(o.name) + '</td><td>' + esc(o.track) + '</td>' +
-        '<td class="n">' + (noW(o) ? '<span class="warn">未填</span>' : fmt(o.weight)) + '</td><td class="n">' + fmt(o.twd) + '</td><td class="n">' + (o.share === '' ? '' : fmt(o.share * 100, 1) + '%') + '</td><td class="n">' + fmt(o.ship) + '</td><td class="n"><b>' + fmt(o.total) + '</b></td></tr>';
+        '<td class="n">' + (noW(o) ? '<span class="warn">未填</span>' : fmt(o.weight)) + '</td><td class="n">' + fmt(o.twd) + '</td><td class="n">' + (o.share === '' ? '' : fmt(o.share, 5)) + '</td><td class="n">' + fmt(o.ship) + '</td><td class="n"><b>' + fmt(o.total) + '</b></td></tr>';
     });
     h += '</table>';
   });
@@ -704,7 +704,7 @@ var STMT_WHO = '';
 function openStmt(who) { STMT_WHO = who; $('st-who').textContent = '— ' + who; buildStmt(); openM('m-stmt'); }
 function md(d) { var p = String(d || '').split('-'); return p.length === 3 ? Number(p[1]) + '/' + Number(p[2]) : String(d || ''); }
 function buildStmt() {
-  var who = STMT_WHO, L = [], N = function (x) { return fmt(x, 0); };
+  var who = STMT_WHO, L = [], N = function (x) { return fmt(x, 2); };
   var mine = D.orders.filter(function (o) { return o.who === who; });
   var bs = D.batches.slice().sort(function (a, b) { return a.date < b.date ? -1 : a.date > b.date ? 1 : 0; });
   L.push('【代購對帳單】' + who, '');
@@ -715,7 +715,7 @@ function buildStmt() {
     var sub = 0;
     L.push('■ 批次 ' + b.name + '（' + md(b.date) + ' 集運，共 ' + rows.length + ' 件）');
     rows.forEach(function (o, i) {
-      var a = Math.round(Number(o.twd) || 0), s = Math.round(Number(o.share) || 0), t = a + s; sub += t;   // 先各自四捨五入再相加，貼出去的數字才對得起來
+      var a = Number(o.twd) || 0, s = Number(o.ship) || 0, t = r2(a + s); sub = r2(sub + t);   // 和試算表一樣取到小數 2 位，明細加起來 = 小計
       L.push((i + 1) + '. ' + o.name + '　' + (a ? '商品 ' + N(a) + ' ＋ ' : '') + '運費 ' + N(s) + ' ＝ ' + N(t));
     });
     L.push('　小計 NT$ ' + N(sub), ''); due += sub;
@@ -728,7 +728,12 @@ function buildStmt() {
     paidList.forEach(function (p) { L.push('　' + md(p.date) + '　NT$ ' + N(p.amount) + (p.method ? '（' + p.method + '）' : '') + (p.batch ? ' ' + p.batch : '')); });
     L.push('');
   }
-  L.push('────────────', '應付合計　NT$ ' + N(due), '已付　　　NT$ ' + N(paid), '未付　　　NT$ ' + N(due - paid));
+  var un = r2(due - paid);
+  if (who === D.settings.payer) L.push('────────────', '應付合計　NT$ ' + N(due), '（你是代墊運費的人，這是自己的份，不用收）');
+  else {
+    L.push('────────────', '應付合計　NT$ ' + N(due), '已付　　　NT$ ' + N(paid), '未付　　　NT$ ' + N(un));
+    if (un > 0 && Math.round(un) !== un) L.push('收款（取整）NT$ ' + fmt(Math.round(un), 0));
+  }
   if ($('st-pend').checked) {
     var pend = mine.filter(function (o) { return !o.batch; });
     if (pend.length) {
