@@ -536,6 +536,11 @@ function openBatchFromSel() {
   if (!ids.length) { toast('請先勾選要集運的訂單', true); return; }
   var rows = D.orders.filter(function (o) { return SEL[o.id]; }), kg = 0, miss = 0;
   rows.forEach(function (o) { if (noW(o)) miss++; else kg += Number(o.weight); });
+  var bad = rows.filter(function (o) { return o.status !== '在集運倉'; });      // 只有「在集運倉」的訂單才能建集運單
+  if (bad.length) {
+    toast('有 ' + bad.length + ' 筆不是「在集運倉」，不能建集運單：' + bad.slice(0, 3).map(function (o) { return o.name + '（' + o.status + '）'; }).join('、') + (bad.length > 3 ? ' …' : ''), true);
+    return;
+  }
   openBatch();
   BATCH_SEL = ids;
   $('b-sel').classList.remove('hide'); $('b-st-wrap').classList.remove('hide');
