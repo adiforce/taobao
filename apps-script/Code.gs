@@ -194,7 +194,8 @@ function batchRow_(b, name) {
 function batchName_(b) {
   if (b.name && String(b.name).trim()) return String(b.name).trim();
   if (!b.date) throw new Error('請填集運單名稱或日期');
-  return b.date + ' ' + (b.kg !== '' && b.kg != null ? b.kg + 'kg' : '');
+  var d = String(b.date).replace(/-/g, ''), k = (b.kg !== '' && b.kg != null && !isNaN(Number(b.kg))) ? '_' + Number(b.kg) + 'KG' : '';
+  return d + k;                                    // 例：20261113_34KG
 }
 function writeBatch_(s, row, vals, addr, rcp) {
   s.getRange(row, 2).setNumberFormat('yyyy/mm/dd');

@@ -228,7 +228,7 @@
   <h3 id="mb-title">新增集運單</h3>
   <div class="form">
     <label>日期<input type="date" id="b-date" onchange="dateChanged('b')"></label>
-    <label>集運單名稱（空白＝日期＋公斤）<input id="b-name"></label>
+    <label>集運單名稱（空白＝日期_公斤KG，例：20261113_34KG）<input id="b-name"></label>
     <label>計費公斤<input type="number" id="b-kg" step="0.01" oninput="autoShip()" onchange="kgBlank()"></label>
     <label>單價 ¥/kg<input type="number" id="b-unit" step="0.01" oninput="autoShip()"></label>
     <label>運費 ¥<input type="number" id="b-cny" step="0.01" oninput="this.dataset.manual=1;calcBatch()"></label>
