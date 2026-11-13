@@ -621,13 +621,16 @@ function delBatch(name) {
 
 /* ---------- 結算 ---------- */
 function renderSettle() {
-  var S = D.settings, st = D.settle;
+  var S = D.settings, st = D.settle, R = Math.round;      // 結算金額：台幣四捨五入到整數
   var h = '<tr><th>人員</th><th class="n">應付（已歸批次）</th><th class="n">已付</th><th class="n">未付</th><th class="n">待出貨商品（未計運費）</th><th></th></tr>';
+  var tDue = 0, tPaid = 0, tUn = 0, tPend = 0;
   st.persons.forEach(function (p) {
-    var un = typeof p.unpaid === 'number' ? '<b class="' + (p.unpaid > 0.5 ? 'bad' : 'ok') + '">' + fmt(p.unpaid) + '</b>' : '<span class="muted">' + esc(p.unpaid) + '</span>';
-    h += '<tr><td>' + esc(p.who) + '</td><td class="n">' + fmt(p.due) + '</td><td class="n">' + fmt(p.paid) + '</td><td class="n">' + un + '</td><td class="n">' + fmt(p.pending) + '</td><td><button class="btn sm pri" data-w="' + esc(p.who) + '" onclick="openStmt(this.dataset.w)">📄 對帳單</button></td></tr>';
+    var due = R(p.due), paid = R(p.paid), pend = R(p.pending), isNum = typeof p.unpaid === 'number', un = due - paid;
+    tDue += due; tPaid += paid; tPend += pend; if (isNum) tUn += un;
+    var uh = isNum ? '<b class="' + (un > 0 ? 'bad' : 'ok') + '">' + fmt(un, 0) + '</b>' : '<span class="muted">' + esc(p.unpaid) + '</span>';
+    h += '<tr><td>' + esc(p.who) + '</td><td class="n">' + fmt(due, 0) + '</td><td class="n">' + fmt(paid, 0) + '</td><td class="n">' + uh + '</td><td class="n">' + fmt(pend, 0) + '</td><td><button class="btn sm pri" data-w="' + esc(p.who) + '" onclick="openStmt(this.dataset.w)">📄 對帳單</button></td></tr>';
   });
-  h += '<tr><td><b>合計</b></td><td class="n"><b>' + fmt(st.total.due) + '</b></td><td class="n"><b>' + fmt(st.total.paid) + '</b></td><td class="n"><b>' + fmt(st.total.unpaid) + '</b></td><td class="n"><b>' + fmt(st.total.pending) + '</b></td><td></td></tr>';
+  h += '<tr><td><b>合計</b></td><td class="n"><b>' + fmt(tDue, 0) + '</b></td><td class="n"><b>' + fmt(tPaid, 0) + '</b></td><td class="n"><b>' + fmt(tUn, 0) + '</b></td><td class="n"><b>' + fmt(tPend, 0) + '</b></td><td></td></tr>';
   $('s-table').innerHTML = h;
   var ok = Math.abs(st.check) < 0.5;
   $('s-check').innerHTML = ok ? '<span class="ok">✔ 核對無誤（所有訂單總額 = 已歸批次 + 待出貨）</span>' :
@@ -725,15 +728,12 @@ function buildStmt() {
   var paid = 0; paidList.forEach(function (p) { paid += Number(p.amount) || 0; });
   if ($('st-paid').checked && paidList.length) {
     L.push('■ 已付款');
-    paidList.forEach(function (p) { L.push('　' + md(p.date) + '　NT$ ' + N(p.amount) + (p.method ? '（' + p.method + '）' : '') + (p.batch ? ' ' + p.batch : '')); });
+    paidList.forEach(function (p) { L.push('　' + md(p.date) + '　NT$ ' + fmt(Math.round(p.amount), 0) + (p.method ? '（' + p.method + '）' : '') + (p.batch ? ' ' + p.batch : '')); });
     L.push('');
   }
-  var un = r2(due - paid);
-  if (who === D.settings.payer) L.push('────────────', '應付合計　NT$ ' + N(due), '（你是代墊運費的人，這是自己的份，不用收）');
-  else {
-    L.push('────────────', '應付合計　NT$ ' + N(due), '已付　　　NT$ ' + N(paid), '未付　　　NT$ ' + N(un));
-    if (un > 0 && Math.round(un) !== un) L.push('收款（取整）NT$ ' + fmt(Math.round(un), 0));
-  }
+  var I = function (x) { return fmt(Math.round(x), 0); }, un = Math.round(due) - Math.round(paid);   // 最後金額四捨五入成整數
+  if (who === D.settings.payer) L.push('────────────', '應付合計　NT$ ' + I(due), '（你是代墊運費的人，這是自己的份，不用收）');
+  else L.push('────────────', '應付合計　NT$ ' + I(due), '已付　　　NT$ ' + I(paid), '未付　　　NT$ ' + fmt(un, 0));
   if ($('st-pend').checked) {
     var pend = mine.filter(function (o) { return !o.batch; });
     if (pend.length) {
