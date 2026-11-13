@@ -700,7 +700,7 @@ function buildShip() {
   var ids = SHIPIDS || Object.keys(SEL);
   var rows = D.orders.filter(function (o) { return ids.indexOf(o.id) >= 0; }).sort(function (a, b) { return a.row - b.row; });
   var names = rows.map(function (o) { return o.name; }).join('、');
-  var tr = rows.map(function (o) { return o.track; }).filter(Boolean).join('+');
+  var tr = rows.map(function (o) { return String(o.track).trim(); }).filter(function (t, i, arr) { return t && arr.indexOf(t) === i; }).join('+');   // 同一運單（拆單共用）只列一次
   var w = 0, miss = 0; rows.forEach(function (o) { if (noW(o)) miss++; else w += Number(o.weight); });
   $('sh-out').value = names + '\n' + tr + '\n共有' + rows.length + '項，總重為' + r2(w) + 'KG' + (miss ? '（另有' + miss + '筆未填重量）' : '') + '\n\n' + [$('sh-addr').value, $('sh-rcp').value].filter(Boolean).join('\n');
 }
