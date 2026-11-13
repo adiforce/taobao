@@ -73,12 +73,12 @@ function getAll_() {
 function getSettings_() {
   var s = sh_('set');
   var b = s.getRange(2, 2, 5, 1).getValues();
-  function col(c) {
-    return s.getRange(2, c, 8, 1).getValues().map(function (r) { return String(r[0]); })
+  function col(c, n) {
+    return s.getRange(2, c, n || 8, 1).getValues().map(function (r) { return String(r[0]); })
       .filter(function (x) { return x !== ''; });
   }
   return { fee: Number(b[0][0]), card: Number(b[1][0]), reward: Number(b[2][0]), payer: String(b[3][0]), rateType: String(b[4][0] || '即期賣出'),
-           people: col(4), statuses: col(6), methods: col(8) };
+           people: col(4), statuses: col(6), methods: col(8), recipients: col(10, 20), addresses: col(12, 20) };
 }
 
 function getOrders_() {
@@ -95,10 +95,10 @@ function getOrders_() {
 function getBatches_() {
   var s = sh_('batches'), last = lastRow_(s);
   if (last < 2) return [];
-  return s.getRange(2, 1, last - 1, 15).getValues().map(function (r, i) {
+  return s.getRange(2, 1, last - 1, 16).getValues().map(function (r, i) {
     return { name: String(r[0]), date: d2s_(r[1]), kg: num_(r[2]), unit: num_(r[3]), cny: num_(r[4]),
       rate: num_(r[5]), link: String(r[6]), note: String(r[7]), twd: num_(r[8]), count: num_(r[9]),
-      wsum: num_(r[10]), wdiff: num_(r[11]), itemTwd: num_(r[12]), total: num_(r[13]), addr: String(r[14]), row: i + 2 };
+      wsum: num_(r[10]), wdiff: num_(r[11]), itemTwd: num_(r[12]), total: num_(r[13]), addr: String(r[14]), rcp: String(r[15]), row: i + 2 };
   });
 }
 
@@ -192,10 +192,10 @@ function batchName_(b) {
   if (!b.date) throw new Error('請填批次名稱或日期');
   return b.date + ' ' + (b.kg !== '' && b.kg != null ? b.kg + 'kg' : '');
 }
-function writeBatch_(s, row, vals, addr) {
+function writeBatch_(s, row, vals, addr, rcp) {
   s.getRange(row, 2).setNumberFormat('yyyy/mm/dd');
   s.getRange(row, 1, 1, 8).setValues([vals]);
-  s.getRange(row, 15).setValue(addr || '');
+  s.getRange(row, 15, 1, 2).setValues([[addr || '', rcp || '']]);
 }
 
 function addBatch_(b) {
@@ -204,7 +204,7 @@ function addBatch_(b) {
     if (findRow_(s, 1, name) > 0) throw new Error('批次名稱已存在：' + name);
     var row = lastRow_(s) + 1;
     ensureRows_(s, row);
-    writeBatch_(s, row, batchRow_(b, name), b.addr);
+    writeBatch_(s, row, batchRow_(b, name), b.addr, b.rcp);
     return name;
   });
 }
@@ -219,7 +219,7 @@ function updateBatch_(b) {                 // b.oldName 為原名稱；若改名
       renameRefs_('orders', 9, b.oldName, name);
       renameRefs_('pay', 5, b.oldName, name);
     }
-    writeBatch_(s, row, batchRow_(b, name), b.addr);
+    writeBatch_(s, row, batchRow_(b, name), b.addr, b.rcp);
     return name;
   });
 }
@@ -272,7 +272,10 @@ function saveSettings_(st) {
     var s = sh_('set');
     s.getRange(2, 2, 5, 1).setValues([[Number(st.fee)], [Number(st.card)], [Number(st.reward)], [st.payer], [st.rateType || '即期賣出']]);
     function pad(arr) { var a = arr.slice(0, 8); while (a.length < 8) a.push(''); return a.map(function (x) { return [x]; }); }
+    function pad20(arr) { var a = (arr || []).slice(0, 20); while (a.length < 20) a.push(''); return a.map(function (x) { return [x]; }); }
     s.getRange(2, 4, 8, 1).setValues(pad(st.people));
+    s.getRange(2, 10, 20, 1).setValues(pad20(st.recipients));
+    s.getRange(2, 12, 20, 1).setValues(pad20(st.addresses));
     s.getRange(2, 6, 8, 1).setValues(pad(st.statuses));
     s.getRange(2, 8, 8, 1).setValues(pad(st.methods));
     return true;
