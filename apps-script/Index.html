@@ -64,9 +64,6 @@
   #loading { position:fixed; top:0; left:0; right:0; height:3px; background:var(--accent); display:none; z-index:100; animation:ld 1s infinite; }
   @keyframes ld { 0%{transform:scaleX(0);transform-origin:left} 50%{transform:scaleX(1);transform-origin:left} 51%{transform-origin:right} 100%{transform:scaleX(0);transform-origin:right} }
   .hide { display:none !important; }
-  body.guest .gx, body.guest #nav button:not([data-t=orders]) { display:none !important; }
-  #gst { display:none; background:#e7f5ff; color:#1971c2; padding:3px 10px; border-radius:12px; font-size:13px; }
-  body.guest #gst { display:inline-block; }
   textarea.list { height:120px; }
   a { color:#1971c2; text-decoration:none; } a:hover { text-decoration:underline; }
   @media (max-width:760px) {
@@ -109,9 +106,7 @@
     <button data-t="pay">付款紀錄</button>
     <button data-t="set">設定</button>
   </nav>
-  <span id="gst">👀 訪客模式（只能看訂單）</span>
   <button class="btn" onclick="load()">↻ 重新整理</button>
-  <button class="btn gx2" id="out-btn" onclick="showLogin()" style="display:none">登出</button>
 </header>
 
 <main>
@@ -124,15 +119,15 @@
         <select id="f-who" onchange="renderOrders()"></select>
         <select id="f-batch" onchange="renderOrders()"></select>
         <label><input type="checkbox" id="f-dup" onchange="renderOrders()"> 只看重複運單</label>
-        <label class="gx"><input type="checkbox" id="f-nw" onchange="renderOrders()"> 只看未填重量</label>
-        <label class="gx"><input type="checkbox" id="f-inc" onchange="renderOrders()"> 只看資料不完整</label>
+        <label><input type="checkbox" id="f-nw" onchange="renderOrders()"> 只看未填重量</label>
+        <label><input type="checkbox" id="f-inc" onchange="renderOrders()"> 只看資料不完整</label>
         <span style="flex:1"></span>
-        <button class="btn gx" onclick="openWeights()">⚖ 補重量</button>
-        <button class="btn pri gx" onclick="openOrder()">＋ 新增訂單</button>
+        <button class="btn" onclick="openWeights()">⚖ 補重量</button>
+        <button class="btn pri" onclick="openOrder()">＋ 新增訂單</button>
       </div>
       <div id="o-pending" style="margin-bottom:8px"></div>
-      <div class="bar hide gx" id="bulk" style="background:#fff8f0;padding:6px 8px;border-radius:6px">已選 <b id="bulk-n">0</b> 筆　<button class="btn pri" onclick="openBatchFromSel()">📦 建立集運單</button><select id="bulk-batch"></select><select id="bulk-status"></select><button class="btn pri" onclick="bulkApply()">套用</button><button class="btn" onclick="clearSel()">取消選取</button></div>
-      <div class="muted gx" id="o-sum" style="margin-bottom:8px"></div>
+      <div class="bar hide" id="bulk" style="background:#fff8f0;padding:6px 8px;border-radius:6px">已選 <b id="bulk-n">0</b> 筆　<button class="btn pri" onclick="openBatchFromSel()">📦 建立集運單</button><select id="bulk-batch"></select><select id="bulk-status"></select><button class="btn pri" onclick="bulkApply()">套用</button><button class="btn" onclick="clearSel()">取消選取</button></div>
+      <div class="muted" id="o-sum" style="margin-bottom:8px"></div>
       <div class="tablewrap"><table id="o-table"></table></div>
     </div>
   </section>
@@ -289,21 +284,6 @@
   <div class="actions"><button class="btn" onclick="closeM('m-stmt')">關閉</button><button class="btn pri" onclick="copyStmt()">複製（貼到 LINE）</button></div>
 </div></div>
 
-<div class="modal-bg" id="m-setpw"><div class="modal" style="max-width:340px;margin-top:12vh">
-  <h3>🔒 設定頁密碼</h3>
-  <input type="password" id="sp-pw" placeholder="設定密碼" style="width:100%" autocomplete="off" onkeydown="if(event.key==='Enter')doSetPw()">
-  <div id="sp-err" class="bad" style="margin-top:6px;min-height:18px"></div>
-  <div class="actions"><button class="btn" onclick="closeM('m-setpw')">取消</button><button class="btn pri" onclick="doSetPw()">進入設定</button></div>
-</div></div>
-
-<!-- 登入 -->
-<div class="modal-bg on" id="login" style="background:rgba(31,41,51,.92);z-index:200"><div class="modal" style="max-width:340px;margin-top:12vh">
-  <h3>🛒 淘寶代購管理</h3>
-  <div class="form" style="grid-template-columns:1fr"><label>密碼<input type="password" id="lg-pw" autocomplete="off" onkeydown="if(event.key==='Enter')doLogin()"></label></div>
-  <div id="lg-err" class="bad" style="margin-top:8px;min-height:18px"></div>
-  <div class="actions"><button class="btn" id="lg-guest" onclick="doGuest()">👀 訪客進入（只看訂單）</button><button class="btn pri" id="lg-btn" onclick="doLogin()">登入</button></div>
-</div></div>
-
 <div id="toast"></div>
 
 <script>
@@ -333,8 +313,6 @@ function run(fn, args, okMsg) {
       .withFailureHandler(function (e) {
         busy(false, blk);
         var m = e && e.message ? e.message : String(e);
-        if (m.indexOf('__AUTH__') >= 0) { showLogin('登入已逾時，請重新登入'); rej(e); return; }
-        if (m.indexOf('__SET__') >= 0) { toast('設定已鎖定，請重新輸入設定密碼', true); showTab('orders'); askSetPw(); rej(e); return; }
         toast(m.replace(/^Error:\s*/, ''), true); rej(e);
       });
     g.api(TOKEN, fn, args || []);
@@ -354,9 +332,6 @@ function load() {
 }
 function renderAll() {
   var s = D.settings;
-  document.body.classList.toggle('guest', !!D.guest);
-  $('out-btn').style.display = D.guest ? '' : 'none';
-  if (D.guest && curTab !== 'orders') showTab('orders');
   if (!window.__stInit) { window.__stInit = 1; if (s.statuses.indexOf('在集運倉') >= 0) $('f-status').dataset.def = '在集運倉'; }
   var keep = { st: $('f-status').dataset.def || $('f-status').value, who: $('f-who').value, b: $('f-batch').value, pf: $('p-filter').value };
   $('f-status').innerHTML = opts(s.statuses, '所有狀態', keep.st); delete $('f-status').dataset.def;
@@ -386,15 +361,8 @@ function showTab(t) {
 }
 $('nav').addEventListener('click', function (e) {
   var t = e.target.getAttribute && e.target.getAttribute('data-t'); if (!t) return;
-  if (t === 'set' && curTab !== 'set') { askSetPw(); return; }     // 設定頁每次進入都要再輸入一次密碼
   showTab(t);
 });
-function askSetPw() { $('sp-err').textContent = ''; $('sp-pw').value = ''; openM('m-setpw'); setTimeout(function () { $('sp-pw').focus(); }, 50); }
-function doSetPw() {
-  var pw = $('sp-pw').value; if (!pw) return;
-  run('unlockSettings', [pw]).then(function () { closeM('m-setpw'); showTab('set'); })
-    .catch(function () { $('sp-pw').value = ''; $('sp-pw').focus(); });
-}
 
 /* ---------- 訂單 ---------- */
 function noW(o) { return !(Number(o.weight) > 0); }
@@ -427,15 +395,6 @@ function renderOrders() {
   visibleIds = rows.filter(function (o) { return !missing(o).length; }).map(function (o) { return o.id; });
   var sum = 0, cny = 0; rows.forEach(function (o) { sum += Number(o.total) || Number(o.twd) || 0; cny += Number(o.cny) || 0; });
   $('o-sum').textContent = rows.length + ' 筆　商品 ¥' + fmt(cny) + '　台幣合計 ' + fmt(sum) + '（已集運者含運費）';
-  if (D.guest) {                                    // 訪客：只顯示進度，不含任何金額
-    var g = '<tr><th>日期</th><th>品名</th><th>運單</th><th class="n">kg</th><th>WHO</th><th>集運單</th><th>狀態</th><th>備註</th></tr>';
-    rows.forEach(function (o) {
-      g += '<tr><td>' + esc(String(o.date).slice(2)) + '</td><td class="wrap">' + esc(o.name) + '</td><td class="wrap" style="word-break:break-all">' + esc(o.track) + '</td>' +
-        '<td class="n">' + (noW(o) ? '<span class="muted">-</span>' : fmt(o.weight)) + '</td><td>' + esc(o.who) + '</td><td class="wrap">' + esc(o.batch) + '</td>' +
-        '<td><span class="tag s-' + esc(o.status) + '">' + esc(o.status) + '</span></td><td class="wrap muted">' + esc(o.note) + '</td></tr>';
-    });
-    $('o-table').innerHTML = g; return;
-  }
   var h = '<tr><th><input type="checkbox" onchange="selAll(this.checked)" title="全選目前列表"></th><th>日期</th><th>品名</th><th>運單 / 淘寶訂單號</th><th class="n">kg</th><th>WHO</th><th class="n">¥ / 匯率</th><th class="n">商品台幣</th><th class="n">運費分攤</th><th class="n">總額</th><th>集運單</th><th>狀態</th><th>備註</th><th></th></tr>';
   rows.forEach(function (o) {
     var lk = linkOf(o.batch), idq = '\'' + esc(o.id) + '\'';
@@ -870,40 +829,10 @@ function saveSet() {
   run('saveSettings', [st], '設定已儲存').then(load).catch(function () {});
 }
 
-document.addEventListener('keydown', function (e) { if (e.key === 'Escape') { closeM('m-order'); closeM('m-batch'); closeM('m-setpw'); } });
+document.addEventListener('keydown', function (e) { if (e.key === 'Escape') { closeM('m-order'); closeM('m-batch'); } });
 
-/* ---------- 登入 ---------- */
-function showLogin(msg) {
-  TOKEN = ''; D = null; document.body.classList.remove('guest'); try { sessionStorage.removeItem('tk'); } catch (e) {}
-  $('lg-err').textContent = msg || ''; $('lg-pw').value = ''; $('login').classList.add('on'); $('lg-pw').focus();
-}
-function doGuest() {
-  $('lg-guest').disabled = true; busy(true);
-  google.script.run.withSuccessHandler(function (t) {
-    busy(false); $('lg-guest').disabled = false; TOKEN = t;
-    try { sessionStorage.setItem('tk', t); } catch (e) {}
-    $('login').classList.remove('on'); load();
-  }).withFailureHandler(function (e) {
-    busy(false); $('lg-guest').disabled = false;
-    $('lg-err').textContent = (e && e.message ? e.message : String(e)).replace(/^Error:\s*/, '');
-  }).guestLogin();
-}
-function doLogin() {
-  var pw = $('lg-pw').value; if (!pw) return;
-  $('lg-btn').disabled = true; busy(true);
-  google.script.run.withSuccessHandler(function (t) {
-    busy(false); $('lg-btn').disabled = false; TOKEN = t;
-    try { sessionStorage.setItem('tk', t); } catch (e) {}
-    $('login').classList.remove('on'); load();
-  }).withFailureHandler(function (e) {
-    busy(false); $('lg-btn').disabled = false; $('lg-pw').value = '';
-    $('lg-err').textContent = (e && e.message ? e.message : String(e)).replace(/^Error:\s*/, '');
-  }).login(pw);
-}
-(function () {
-  var t = ''; try { t = sessionStorage.getItem('tk') || ''; } catch (e) {}
-  if (t) { TOKEN = t; $('login').classList.remove('on'); load(); } else { $('lg-pw').focus(); }
-})();
+/* ---------- 啟動 ---------- */
+load();
 
 /* ---------- 手機版：表格每列變卡片（把表頭文字貼到每個格子上） ---------- */
 function labelize(root) {

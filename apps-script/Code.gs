@@ -3,7 +3,6 @@
  * 貼在「買いもの_googleSheet」的 擴充功能 > Apps Script（容器綁定）
  * 只寫入「輸入欄」，計算欄（手續費、運費分攤、總額…）全部由試算表公式負責。
  */
-var PW_PREFIX = '';   // 密碼 = 前綴 + 台北時間 月日時(MMddHH)，例如 前綴+111315
 var SS_ID = '';
 var SH = { orders: '訂單', batches: '運費批次', pay: '付款紀錄', settle: '結算', set: '設定' };
 
@@ -274,7 +273,6 @@ function deletePayment_(p) {               // 以列號 + 內容雙重確認，�
 
 /* ---------- 設定 ---------- */
 function saveSettings_(st) {
-  if (!CacheService.getScriptCache().get('set:' + CUR_TOKEN_)) throw new Error('__SET__');
   return withLock_(function () {
     var s = sh_('set');
     s.getRange(2, 2, 5, 1).setValues([[Number(st.fee)], [Number(st.card)], [Number(st.reward)], [st.payer], [st.rateType || '即期賣出']]);
@@ -412,76 +410,15 @@ function setWeights_(list) {                    // 集運後才知道重量：�
   });
 }
 
-/* ---------- 登入（密碼 = 前綴 + 月日時 MMddHH，台北時間；整點前後一小時內都接受） ---------- */
-function validPw_(pw) {
-  var now = new Date(), ok = [0, 1].map(function (b) {
-    return PW_PREFIX + Utilities.formatDate(new Date(now.getTime() - b * 3600000), 'Asia/Taipei', 'MMddHH');
-  });
-  return ok.indexOf(String(pw || '').trim()) >= 0;
-}
-
-function login(pw) {
-  var cache = CacheService.getScriptCache(), fails = Number(cache.get('pwfails') || 0);
-  if (fails >= 5) throw new Error('錯誤次數過多，請 10 分鐘後再試');
-  if (!validPw_(pw)) { cache.put('pwfails', String(fails + 1), 600); throw new Error('密碼錯誤'); }
-  cache.remove('pwfails');
-  var token = Utilities.getUuid();
-  cache.put('tok:' + token, '1', 21600);          // 6 小時
-  return token;
-}
-
-/* ---------- 設定頁二次密碼：前綴 + 台北時間 yyMMHH + 後綴（現在與前一小時內都接受） ---------- */
-var SET_SUFFIX = '';
-var CUR_TOKEN_ = '';
-function validSetPw_(pw) {
-  var now = new Date().getTime(), p = String(pw || '').trim();
-  return [0, 1].some(function (h) { return p === PW_PREFIX + Utilities.formatDate(new Date(now - h * 3600000), 'Asia/Taipei', 'yyMMHH') + SET_SUFFIX; });
-}
-function unlockSettings_(pw) {
-  var cache = CacheService.getScriptCache(), fails = Number(cache.get('setfails') || 0);
-  if (fails >= 5) throw new Error('設定密碼錯誤次數過多，請 10 分鐘後再試');
-  if (!validSetPw_(pw)) { cache.put('setfails', String(fails + 1), 600); throw new Error('設定密碼錯誤'); }
-  cache.remove('setfails');
-  cache.put('set:' + CUR_TOKEN_, '1', 900);        // 解鎖後 15 分鐘內可儲存設定
-  return true;
-}
-
-/* ---------- 訪客：不用密碼，只能看訂單（金額一律不給） ---------- */
-function guestLogin() {
-  var token = Utilities.getUuid();
-  CacheService.getScriptCache().put('tok:' + token, 'guest', 7200);     // 2 小時
-  return token;
-}
-function guestAll_() {
-  var st = getSettings_(), seen = {};
-  var orders = getOrders_().map(function (o) {
-    seen[o.who] = 1;
-    return { id: o.id, date: o.date, name: o.name, track: o.track, weight: o.weight, who: o.who, cny: '', rate: '', batch: o.batch,
-             status: o.status, note: o.note, twd: '', share: '', ship: '', total: '', dup: false, tb: '', row: o.row };
-  });
-  return {
-    guest: true,
-    settings: { fee: 0, card: 0, reward: 0, payer: '', rateType: '', people: Object.keys(seen), statuses: st.statuses, methods: [], recipients: [], addresses: [], carriers: [] },
-    orders: orders, batches: [], payments: [],
-    settle: { persons: [], total: { due: 0, paid: 0, unpaid: 0, pending: 0 }, check: 0, cols: [], matrix: [] }
-  };
-}
-
+/* ---------- 資料入口（誰能開網頁由部署設定「具有存取權的使用者：只有我」控管） ---------- */
 var API_ = {
   getAll: getAll_, addOrder: addOrder_, updateOrder: updateOrder_, deleteOrder: deleteOrder_,
   addBatch: addBatch_, updateBatch: updateBatch_, deleteBatch: deleteBatch_,
   addPayment: addPayment_, deletePayment: deletePayment_, saveSettings: saveSettings_,
-  addPerson: addPerson_, bulkAssign: bulkAssign_, splitOrder: splitOrder_, setWeights: setWeights_, getRate: getRate_, unlockSettings: unlockSettings_
+  addPerson: addPerson_, bulkAssign: bulkAssign_, splitOrder: splitOrder_, setWeights: setWeights_, getRate: getRate_
 };
 
-function api(token, fn, args) {                    // 唯一的資料入口：沒有有效 token 一律拒絕
-  var role = token ? CacheService.getScriptCache().get('tok:' + token) : null;
-  if (!role) throw new Error('__AUTH__');
-  if (role === 'guest') {                           // 訪客只能讀訂單
-    if (fn !== 'getAll') throw new Error('訪客模式只能查看訂單');
-    return guestAll_();
-  }
+function api(token, fn, args) {                    // 唯一的資料入口（token 已不使用，保留參數是為了相容前端）
   if (!Object.prototype.hasOwnProperty.call(API_, fn)) throw new Error('未知的操作：' + fn);
-  CUR_TOKEN_ = token;
   return API_[fn].apply(null, args || []);
 }
