@@ -221,7 +221,7 @@
   <div class="form">
     <label>日期<input type="date" id="b-date" onchange="dateChanged('b')"></label>
     <label>批次名稱（空白＝日期＋公斤）<input id="b-name"></label>
-    <label>計費公斤<input type="number" id="b-kg" step="0.01" oninput="autoShip()"></label>
+    <label>計費公斤<input type="number" id="b-kg" step="0.01" oninput="autoShip()" onchange="kgBlank()"></label>
     <label>單價 ¥/kg<input type="number" id="b-unit" step="0.01" oninput="autoShip()"></label>
     <label>運費 ¥<input type="number" id="b-cny" step="0.01" oninput="this.dataset.manual=1;calcBatch()"></label>
     <label>匯率 <span id="b-rate-note"></span>
@@ -317,8 +317,9 @@ function load() {
 }
 function renderAll() {
   var s = D.settings;
-  var keep = { st: $('f-status').value, who: $('f-who').value, b: $('f-batch').value, pf: $('p-filter').value };
-  $('f-status').innerHTML = opts(s.statuses, '所有狀態', keep.st);
+  if (!window.__stInit) { window.__stInit = 1; if (s.statuses.indexOf('在集運倉') >= 0) $('f-status').dataset.def = '在集運倉'; }
+  var keep = { st: $('f-status').dataset.def || $('f-status').value, who: $('f-who').value, b: $('f-batch').value, pf: $('p-filter').value };
+  $('f-status').innerHTML = opts(s.statuses, '所有狀態', keep.st); delete $('f-status').dataset.def;
   $('f-who').innerHTML = opts(s.people, '所有人', keep.who);
   $('f-batch').innerHTML = '<option value="">所有批次</option><option value="__none">（未歸批次）</option>' + D.batches.map(function (b) { return '<option' + (b.name === keep.b ? ' selected' : '') + '>' + esc(b.name) + '</option>'; }).join('');
   if (keep.b === '__none') $('f-batch').value = '__none';
@@ -522,7 +523,7 @@ function openBatchFromSel() {
   $('b-sel').classList.remove('hide'); $('b-st-wrap').classList.remove('hide');
   $('b-sel').innerHTML = '儲存後會把已勾選的 <b>' + ids.length + '</b> 筆訂單歸入這個批次。已知重量合計 <b>' + fmt(kg, 2) + '</b> kg' + (miss ? '，<span class="warn">' + miss + ' 筆還沒填重量</span>（之後可用「補重量」補）' : '') + '。計費公斤已先帶入已知重量，請依集運公司實際計費修改。';
   $('b-st').innerHTML = opts(D.settings.statuses, '（狀態不變）', D.settings.statuses.indexOf('在集運倉') >= 0 ? '在集運倉' : '');
-  if (kg > 0) { $('b-kg').value = r2(kg); autoShip(); }
+  if (kg > 0) { KG_DEF = r2(kg); $('b-kg').value = KG_DEF; autoShip(); }
 }
 function carList() { return (D.settings.carriers || []).map(function (x) { var i = x.indexOf('|'); return { name: x.slice(0, i), url: x.slice(i + 1) }; }).filter(function (x) { return x.name && x.url.indexOf('{num}') >= 0; }); }
 function carRe(u) { var p = u.split('{num}'); return new RegExp('^' + p.map(function (s) { return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }).join('([^&#/?]+)') + '$', 'i'); }
@@ -547,7 +548,12 @@ function buildLink() {
   var L = carList().filter(function (x) { return x.name === $('b-car').value; })[0];
   return L ? L.url.replace('{num}', encodeURIComponent(v)) : v;
 }
+var KG_DEF = '';
+function kgBlank() {                // 計費公斤清空時，還原成預設（所選訂單已知重量合計）
+  if ($('b-kg').value.trim() === '' && KG_DEF !== '') { $('b-kg').value = KG_DEF; autoShip(); }
+}
 function openBatch(name) {
+  KG_DEF = '';
   editBatch = name || null; BATCH_SEL = null; $('b-sel').classList.add('hide'); $('b-st-wrap').classList.add('hide');
   var b = name ? D.batches.filter(function (x) { return x.name === name; })[0] : null;
   $('mb-title').textContent = b ? '編輯批次' : '新增批次';
@@ -555,6 +561,7 @@ function openBatch(name) {
   $('b-kg').value = b ? b.kg : ''; $('b-unit').value = b ? b.unit : ''; $('b-cny').value = b ? b.cny : '';
   $('b-cny').dataset.manual = b ? '1' : '';
   $('b-rate').value = b ? b.rate : ''; $('b-rate').dataset.manual = b ? '1' : ''; $('b-rate-note').textContent = '';
+  if (b) { var wk = 0; D.orders.forEach(function (o) { if (o.batch === b.name) wk += Number(o.weight) || 0; }); if (wk > 0) KG_DEF = r2(wk); }
   fillCar(b ? b.link : ''); $('b-note').value = b ? b.note : '';
   var lb = D.batches.length ? D.batches[D.batches.length - 1] : null;
   fillRA('b-rcp', 'b-addr', b ? b.rcp : (lb ? lb.rcp : ''), b ? b.addr : (lb ? lb.addr : ''));
