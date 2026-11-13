@@ -93,7 +93,7 @@
         <button class="btn pri" onclick="openOrder()">＋ 新增訂單</button>
       </div>
       <div id="o-pending" style="margin-bottom:8px"></div>
-      <div class="bar hide" id="bulk" style="background:#fff8f0;padding:6px 8px;border-radius:6px">已選 <b id="bulk-n">0</b> 筆　<select id="bulk-batch"></select><select id="bulk-status"></select><button class="btn pri" onclick="bulkApply()">套用</button><button class="btn" onclick="openShipInfo()">📋 出貨資訊</button><button class="btn" onclick="clearSel()">取消選取</button></div>
+      <div class="bar hide" id="bulk" style="background:#fff8f0;padding:6px 8px;border-radius:6px">已選 <b id="bulk-n">0</b> 筆　<button class="btn pri" onclick="openBatchFromSel()">📦 建立集運批次</button><select id="bulk-batch"></select><select id="bulk-status"></select><button class="btn pri" onclick="bulkApply()">套用</button><button class="btn" onclick="openShipInfo()">📋 出貨資訊</button><button class="btn" onclick="clearSel()">取消選取</button></div>
       <div class="muted" id="o-sum" style="margin-bottom:8px"></div>
       <div class="tablewrap"><table id="o-table"></table></div>
     </div>
@@ -203,6 +203,8 @@
     <label>收件地址<select id="b-addr"></select></label>
     <label class="full">貨態連結或運單號（只填單號會自動組成 sjlexpress 連結）<input id="b-link"></label>
     <label class="full">備註<input id="b-note"></label>
+    <label id="b-st-wrap" class="hide">歸入後訂單狀態<select id="b-st"></select></label>
+    <div class="preview hide" id="b-sel"></div>
     <div class="preview" id="b-prev"></div>
   </div>
   <div class="actions">
@@ -437,7 +439,7 @@ function renderBatches() {
   });
   $('b-table').innerHTML = h;
 }
-var OPEN = {}, SHIPIDS = null;
+var OPEN = {}, SHIPIDS = null, BATCH_SEL = null;
 function toggleBatch(name) { if (OPEN[name]) delete OPEN[name]; else OPEN[name] = 1; renderBatches(); }
 function batchDetail(b) {
   var rows = D.orders.filter(function (o) { return o.batch === b.name; }).sort(function (x, y) { return x.row - y.row; });
@@ -471,8 +473,20 @@ function batchShip(name) {
 }
 function selOpts(list, cur) { return opts(list, '（未指定）', cur) + (cur && list.indexOf(cur) < 0 ? '<option selected>' + esc(cur) + '</option>' : ''); }
 function fillRA(rcpId, addrId, rcp, addr) { $(rcpId).innerHTML = selOpts(D.settings.recipients, rcp); $(addrId).innerHTML = selOpts(D.settings.addresses, addr); }
+function openBatchFromSel() {
+  var ids = Object.keys(SEL);
+  if (!ids.length) { toast('請先勾選要集運的訂單', true); return; }
+  var rows = D.orders.filter(function (o) { return SEL[o.id]; }), kg = 0, miss = 0;
+  rows.forEach(function (o) { if (noW(o)) miss++; else kg += Number(o.weight); });
+  openBatch();
+  BATCH_SEL = ids;
+  $('b-sel').classList.remove('hide'); $('b-st-wrap').classList.remove('hide');
+  $('b-sel').innerHTML = '儲存後會把已勾選的 <b>' + ids.length + '</b> 筆訂單歸入這個批次。已知重量合計 <b>' + fmt(kg, 2) + '</b> kg' + (miss ? '，<span class="warn">' + miss + ' 筆還沒填重量</span>（之後可用「補重量」補）' : '') + '。計費公斤已先帶入已知重量，請依集運公司實際計費修改。';
+  $('b-st').innerHTML = opts(D.settings.statuses, '（狀態不變）', D.settings.statuses.indexOf('在集運倉') >= 0 ? '在集運倉' : '');
+  if (kg > 0) { $('b-kg').value = r2(kg); autoShip(); }
+}
 function openBatch(name) {
-  editBatch = name || null;
+  editBatch = name || null; BATCH_SEL = null; $('b-sel').classList.add('hide'); $('b-st-wrap').classList.add('hide');
   var b = name ? D.batches.filter(function (x) { return x.name === name; })[0] : null;
   $('mb-title').textContent = b ? '編輯批次' : '新增批次';
   $('b-date').value = b ? b.date : today(); $('b-name').value = b ? b.name : '';
@@ -501,7 +515,9 @@ function saveBatch() {
   if (link && !/^https?:\/\//i.test(link)) link = 'https://www.sjlexpress.com/m/search?Num=' + encodeURIComponent(link);
   var b = { oldName: editBatch, name: $('b-name').value, date: $('b-date').value, kg: $('b-kg').value, unit: $('b-unit').value,
     cny: $('b-cny').value, rate: $('b-rate').value, link: link, addr: $('b-addr').value, rcp: $('b-rcp').value, note: $('b-note').value };
-  run(editBatch ? 'updateBatch' : 'addBatch', [b], '已儲存').then(function () { closeM('m-batch'); return load(); }).catch(function () {});
+  run(editBatch ? 'updateBatch' : 'addBatch', [b], editBatch ? '已儲存' : '').then(function (name) {
+    if (BATCH_SEL && !editBatch) return run('bulkAssign', [BATCH_SEL, name, $('b-st').value], '已建立批次，並歸入 ' + BATCH_SEL.length + ' 筆訂單').then(function () { SEL = {}; });
+  }).then(function () { closeM('m-batch'); return load(); }).catch(function () {});
 }
 function delBatch(name) {
   if (!confirm('刪除批次「' + name + '」？')) return;
