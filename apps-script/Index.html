@@ -194,7 +194,7 @@
         <label>付款方式（一行一個，最多 8）<textarea class="list" id="s-methods"></textarea></label>
       </div>
       <div class="actions"><button class="btn pri" onclick="saveSet()">儲存設定</button></div>
-      <div class="muted" style="margin-top:8px">改費率會影響整份試算表所有訂單的重新計算（含歷史訂單）。</div>
+      <div class="muted" style="margin-top:8px">費率只影響「之後新增」的訂單與集運單；已建立的資料會保留當時的費率，不會被重算。</div>
     </div>
   </section>
 </main>
@@ -466,8 +466,12 @@ function fetchRate(p, silent) {
     if (p === 'o') calcOrder(); else calcBatch();
   }).catch(function () {});
 }
+function ratesOf(rec) {                     // 編輯舊資料用它當初凍結的費率；新增才用目前設定
+  var s = D.settings;
+  return { fee: rec && rec.r1 != null ? rec.r1 : s.fee, card: rec && rec.r2 != null ? rec.r2 : s.card, reward: rec && rec.r3 != null ? rec.r3 : s.reward };
+}
 function calcOrder() {
-  var s = D.settings, g = parseFloat($('o-cny').value), rate = parseFloat($('o-rate').value);
+  var s = ratesOf(editId ? D.orders.filter(function (x) { return x.id === editId; })[0] : null), g = parseFloat($('o-cny').value), rate = parseFloat($('o-rate').value);
   if (isNaN(g) || isNaN(rate)) { $('o-prev').textContent = '填入金額與匯率後顯示台幣試算'; return; }
   var f1 = g * s.fee, f2 = (g + f1) * s.card, rw = (g + f1 + f2) * s.reward, twd = r2((g + f1 + f2 - rw) * rate);
   $('o-prev').innerHTML = '淘寶手續費 ¥' + fmt(f1) + '　刷卡手續費 ¥' + fmt(f2) + '　刷卡回饋 -¥' + fmt(rw) + '<br><b>商品台幣約 ' + fmt(twd) + '</b>（運費等集運單與重量確定後由試算表自動分攤）';
@@ -606,7 +610,7 @@ function autoShip() {
   calcBatch();
 }
 function calcBatch() {
-  var s = D.settings, g = parseFloat($('b-cny').value), rate = parseFloat($('b-rate').value);
+  var s = ratesOf(editBatch ? D.batches.filter(function (x) { return x.name === editBatch; })[0] : null), g = parseFloat($('b-cny').value), rate = parseFloat($('b-rate').value);
   if (isNaN(g) || isNaN(rate)) { $('b-prev').textContent = '填入運費 ¥ 與匯率後顯示台幣'; return; }
   var f1 = g * s.fee, f2 = (g + f1) * s.card;
   $('b-prev').innerHTML = '運費台幣約 <b>' + fmt(r2((g + f1 + f2) * (1 - s.reward) * rate)) + '</b>（與訂單相同的手續費／回饋算法）。實際單價有時不是 kg × 單價，運費 ¥ 可手動改。';

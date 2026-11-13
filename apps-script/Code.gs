@@ -84,21 +84,21 @@ function getSettings_() {
 function getOrders_() {
   var s = sh_('orders'), last = lastRow_(s);
   if (last < 2) return [];
-  return s.getRange(2, 1, last - 1, 20).getValues().map(function (r, i) {
+  return s.getRange(2, 1, last - 1, 23).getValues().map(function (r, i) {
     return { id: r[0], date: d2s_(r[1]), name: String(r[2]), track: String(r[3]), weight: num_(r[4]),
       who: String(r[5]), cny: num_(r[6]), rate: num_(r[7]), batch: String(r[8]), status: String(r[9]), note: String(r[10]),
       fee1: num_(r[11]), fee2: num_(r[12]), reward: num_(r[13]), twd: num_(r[14]), share: num_(r[15]),
-      ship: num_(r[16]), total: num_(r[17]), dup: r[18] === 'DUP', tb: String(r[19]), row: i + 2 };
+      ship: num_(r[16]), total: num_(r[17]), dup: r[18] === 'DUP', tb: String(r[19]), r1: r[20] === '' ? null : num_(r[20]), r2: r[21] === '' ? null : num_(r[21]), r3: r[22] === '' ? null : num_(r[22]), row: i + 2 };
   });
 }
 
 function getBatches_() {
   var s = sh_('batches'), last = lastRow_(s);
   if (last < 2) return [];
-  return s.getRange(2, 1, last - 1, 16).getValues().map(function (r, i) {
+  return s.getRange(2, 1, last - 1, 19).getValues().map(function (r, i) {
     return { name: String(r[0]), date: d2s_(r[1]), kg: num_(r[2]), unit: num_(r[3]), cny: num_(r[4]),
       rate: num_(r[5]), link: String(r[6]), note: String(r[7]), twd: num_(r[8]), count: num_(r[9]),
-      wsum: num_(r[10]), wdiff: num_(r[11]), itemTwd: num_(r[12]), total: num_(r[13]), addr: String(r[14]), rcp: String(r[15]), row: i + 2 };
+      wsum: num_(r[10]), wdiff: num_(r[11]), itemTwd: num_(r[12]), total: num_(r[13]), addr: String(r[14]), rcp: String(r[15]), r1: r[16] === '' ? null : num_(r[16]), r2: r[17] === '' ? null : num_(r[17]), r3: r[18] === '' ? null : num_(r[18]), row: i + 2 };
   });
 }
 
@@ -151,6 +151,10 @@ function writeOrder_(s, row, vals, tb) {
   var t = s.getRange(row, 20); t.setNumberFormat('@'); t.setValue(String(tb || '').trim());   // 淘寶訂單號(19碼)也要存文字
 }
 
+function snap_() {                               // 目前設定的三個費率；新增時寫進該筆，之後改設定不影響舊資料
+  var b = sh_('set').getRange(2, 2, 3, 1).getValues();
+  return [Number(b[0][0]) || 0, Number(b[1][0]) || 0, Number(b[2][0]) || 0];
+}
 function addOrder_(o) {
   return withLock_(function () {
     var s = sh_('orders'), last = lastRow_(s), max = 0;
@@ -161,6 +165,7 @@ function addOrder_(o) {
     var row = last + 1;
     ensureRows_(s, row);
     writeOrder_(s, row, orderRow_(o, id), o.tb);
+    s.getRange(row, 21, 1, 3).setValues([snap_()]);
     return id;
   });
 }
@@ -210,6 +215,7 @@ function addBatch_(b) {
     var row = lastRow_(s) + 1;
     ensureRows_(s, row);
     writeBatch_(s, row, batchRow_(b, name), b.addr, b.rcp);
+    s.getRange(row, 17, 1, 3).setValues([snap_()]);
     return name;
   });
 }
@@ -338,7 +344,7 @@ function splitOrder_(id, parts) {               // 同一筆淘寶訂單拆給�
     if (!parts || parts.length < 2) throw new Error('至少要拆成兩份');
     var s = sh_('orders'), row = findRow_(s, 1, id);
     if (row < 0) throw new Error('找不到訂單 ' + id + '，請重新整理');
-    var cur = s.getRange(row, 1, 1, 20).getValues()[0];
+    var cur = s.getRange(row, 1, 1, 23).getValues()[0];
     var orig = Number(cur[6]) || 0, sum = 0;
     parts.forEach(function (p) {
       if (!p.who) throw new Error('每一份都要選 WHO');
@@ -361,6 +367,7 @@ function splitOrder_(id, parts) {               // 同一筆淘寶訂單拆給�
     for (var i = 1; i < parts.length; i++) {
       var nid = 'O' + ('0000' + (++max)).slice(-4);
       writeOrder_(s, next, mk(nid, parts[i], baseNote + '拆自 ' + id), tb);
+      s.getRange(next, 21, 1, 3).setValues([[cur[20], cur[21], cur[22]]]);     // 沿用原訂單當時的費率
       s.getRange(next, 2).setValue(cur[1]);
       next++; ids.push(nid);
     }
