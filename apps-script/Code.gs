@@ -430,12 +430,12 @@ function login(pw) {
   return token;
 }
 
-/* ---------- 設定頁二次密碼：前綴 + 台北時間 yyMMHHmm + 後綴（前後各容許 1 分鐘） ---------- */
+/* ---------- 設定頁二次密碼：前綴 + 台北時間 yyMMHH + 後綴（現在與前一小時內都接受） ---------- */
 var SET_SUFFIX = '';
 var CUR_TOKEN_ = '';
 function validSetPw_(pw) {
   var now = new Date().getTime(), p = String(pw || '').trim();
-  return [-1, 0, 1].some(function (m) { return p === PW_PREFIX + Utilities.formatDate(new Date(now + m * 60000), 'Asia/Taipei', 'yyMMHHmm') + SET_SUFFIX; });
+  return [0, 1].some(function (h) { return p === PW_PREFIX + Utilities.formatDate(new Date(now - h * 3600000), 'Asia/Taipei', 'yyMMHH') + SET_SUFFIX; });
 }
 function unlockSettings_(pw) {
   var cache = CacheService.getScriptCache(), fails = Number(cache.get('setfails') || 0);
