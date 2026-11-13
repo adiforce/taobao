@@ -154,6 +154,7 @@
         <label>人員（一行一個，最多 8）<textarea class="list" id="s-people"></textarea></label>
         <label>收件人（姓名 電話，一行一個）<textarea class="list" id="s-rcps"></textarea></label>
         <label>收件地址（一行一個）<textarea class="list" id="s-addrs"></textarea></label>
+        <label>集運／物流公司（一行一個：名稱|查詢網址，單號位置用 {num}）<textarea class="list" id="s-carriers"></textarea></label>
         <label>狀態（一行一個，最多 8）<textarea class="list" id="s-statuses"></textarea></label>
         <label>付款方式（一行一個，最多 8）<textarea class="list" id="s-methods"></textarea></label>
       </div>
@@ -202,7 +203,8 @@
       <span style="display:flex;gap:6px"><input type="number" id="b-rate" step="0.001" oninput="rateManual('b');calcBatch()"><button type="button" class="btn sm" onclick="fetchRate('b')">取匯率</button></span></label>
     <label>收件人<select id="b-rcp"></select></label>
     <label>收件地址<select id="b-addr"></select></label>
-    <label class="full">貨態連結或運單號（只填單號會自動組成 sjlexpress 連結）<input id="b-link"></label>
+    <label>物流公司<select id="b-car" onchange="carChg()"></select></label>
+    <label>運單號（也可直接貼整條查詢網址，會自動抽出單號）<input id="b-link" oninput="linkIn()"></label>
     <label class="full">備註<input id="b-note"></label>
     <label id="b-st-wrap" class="hide">歸入後訂單狀態<select id="b-st"></select></label>
     <div class="preview hide" id="b-sel"></div>
@@ -305,7 +307,7 @@ function renderAll() {
   if (!$('p-date').value) $('p-date').value = today();
   $('s-fee').value = s.fee; $('s-card').value = s.card; $('s-reward').value = s.reward;
   $('s-payer').innerHTML = opts(s.people, null, s.payer);
-  $('s-rcps').value = s.recipients.join('\n'); $('s-addrs').value = s.addresses.join('\n');
+  $('s-rcps').value = s.recipients.join('\n'); $('s-addrs').value = s.addresses.join('\n'); $('s-carriers').value = s.carriers.join('\n');
   $('s-people').value = s.people.join('\n'); $('s-statuses').value = s.statuses.join('\n'); $('s-methods').value = s.methods.join('\n');
   renderOrders(); renderBatches(); renderSettle(); renderPay();
 }
@@ -447,7 +449,7 @@ function renderBatches() {
       '<td class="n">' + fmt(b.count, 0) + (miss ? ' <b class="bad">(缺' + miss + ')</b>' : '') + '</td>' +
       '<td class="n">' + fmt(b.wsum, 1) + ' <span' + (bad ? ' class="warn" style="background:#fff3bf;padding:0 4px"' : ' class="muted"') + '>(' + fmt(b.wdiff, 1) + ')</span></td>' +
       '<td class="n">' + fmt(b.itemTwd) + '</td><td class="n"><b>' + fmt(b.total) + '</b></td>' +
-      '<td>' + (b.link ? '<a href="' + esc(b.link) + '" target="_blank" rel="noopener">查貨態 📦</a>' : '') + '</td><td class="wrap">' + esc(b.rcp) + (b.rcp && b.addr ? '<br>' : '') + esc(b.addr) + '</td><td class="wrap muted">' + esc(b.note) + '</td>' +
+      '<td>' + (b.link ? (function () { var p = parseLink(b.link); return '<a href="' + esc(b.link) + '" target="_blank" rel="noopener">查貨態 📦</a>' + (p.car ? '<div class="muted" style="font-size:12px">' + esc(p.car) + ' ' + esc(p.num) + '</div>' : ''); })() : '') + '</td><td class="wrap">' + esc(b.rcp) + (b.rcp && b.addr ? '<br>' : '') + esc(b.addr) + '</td><td class="wrap muted">' + esc(b.note) + '</td>' +
       '<td><button class="btn sm" onclick="openBatch(\'' + esc(b.name) + '\')">編輯</button> <button class="btn sm danger" onclick="delBatch(\'' + esc(b.name) + '\')">刪</button></td></tr>';
     if (OPEN[b.name]) h += '<tr><td colspan="13" style="background:#fafbfc;white-space:normal">' + batchDetail(b) + '</td></tr>';
   });
@@ -499,6 +501,29 @@ function openBatchFromSel() {
   $('b-st').innerHTML = opts(D.settings.statuses, '（狀態不變）', D.settings.statuses.indexOf('在集運倉') >= 0 ? '在集運倉' : '');
   if (kg > 0) { $('b-kg').value = r2(kg); autoShip(); }
 }
+function carList() { return (D.settings.carriers || []).map(function (x) { var i = x.indexOf('|'); return { name: x.slice(0, i), url: x.slice(i + 1) }; }).filter(function (x) { return x.name && x.url.indexOf('{num}') >= 0; }); }
+function carRe(u) { var p = u.split('{num}'); return new RegExp('^' + p.map(function (s) { return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }).join('([^&#/?]+)') + '$', 'i'); }
+function parseLink(link) {          // 網址 → {car, num}；對不上任何公司就是自訂網址
+  link = String(link || '').trim(); var L = carList();
+  for (var i = 0; i < L.length; i++) { var m = link.match(carRe(L[i].url)); if (m) return { car: L[i].name, num: decodeURIComponent(m[1]) }; }
+  return { car: link ? '' : (L[0] ? L[0].name : ''), num: link };
+}
+function fillCar(link) {
+  var L = carList(), p = parseLink(link);
+  $('b-car').innerHTML = L.map(function (x) { return '<option' + (x.name === p.car ? ' selected' : '') + '>' + esc(x.name) + '</option>'; }).join('') + '<option value=""' + (p.car === '' && link ? ' selected' : '') + '>（自訂網址）</option>';
+  $('b-link').value = p.num;
+}
+function linkIn() {                 // 貼整條網址時，自動認出公司並只留單號
+  var v = $('b-link').value.trim(); if (!/^https?:\/\//i.test(v)) return;
+  var p = parseLink(v); if (p.car) { $('b-car').value = p.car; $('b-link').value = p.num; }
+}
+function carChg() {}
+function buildLink() {
+  var v = $('b-link').value.trim(); if (!v) return '';
+  if (/^https?:\/\//i.test(v)) return v;
+  var L = carList().filter(function (x) { return x.name === $('b-car').value; })[0];
+  return L ? L.url.replace('{num}', encodeURIComponent(v)) : v;
+}
 function openBatch(name) {
   editBatch = name || null; BATCH_SEL = null; $('b-sel').classList.add('hide'); $('b-st-wrap').classList.add('hide');
   var b = name ? D.batches.filter(function (x) { return x.name === name; })[0] : null;
@@ -507,7 +532,7 @@ function openBatch(name) {
   $('b-kg').value = b ? b.kg : ''; $('b-unit').value = b ? b.unit : ''; $('b-cny').value = b ? b.cny : '';
   $('b-cny').dataset.manual = b ? '1' : '';
   $('b-rate').value = b ? b.rate : ''; $('b-rate').dataset.manual = b ? '1' : ''; $('b-rate-note').textContent = '';
-  $('b-link').value = b ? b.link : ''; $('b-note').value = b ? b.note : '';
+  fillCar(b ? b.link : ''); $('b-note').value = b ? b.note : '';
   var lb = D.batches.length ? D.batches[D.batches.length - 1] : null;
   fillRA('b-rcp', 'b-addr', b ? b.rcp : (lb ? lb.rcp : ''), b ? b.addr : (lb ? lb.addr : ''));
   calcBatch(); openM('m-batch');
@@ -525,8 +550,7 @@ function calcBatch() {
   $('b-prev').innerHTML = '運費台幣約 <b>' + fmt(r2((g + f1 + f2) * (1 - s.reward) * rate)) + '</b>（與訂單相同的手續費／回饋算法）。實際單價有時不是 kg × 單價，運費 ¥ 可手動改。';
 }
 function saveBatch() {
-  var link = $('b-link').value.trim();
-  if (link && !/^https?:\/\//i.test(link)) link = 'https://www.sjlexpress.com/m/search?Num=' + encodeURIComponent(link);
+  var link = buildLink();
   var b = { oldName: editBatch, name: $('b-name').value, date: $('b-date').value, kg: $('b-kg').value, unit: $('b-unit').value,
     cny: $('b-cny').value, rate: $('b-rate').value, link: link, addr: $('b-addr').value, rcp: $('b-rcp').value, note: $('b-note').value };
   run(editBatch ? 'updateBatch' : 'addBatch', [b], editBatch ? '已儲存' : '').then(function (name) {
@@ -698,7 +722,7 @@ function saveSplit() {
 function lines(id) { return $(id).value.split('\n').map(function (x) { return x.trim(); }).filter(Boolean); }
 function saveSet() {
   var st = { fee: $('s-fee').value, card: $('s-card').value, reward: $('s-reward').value, payer: $('s-payer').value, rateType: $('s-rtype').value,
-    people: lines('s-people'), recipients: lines('s-rcps'), addresses: lines('s-addrs'), statuses: lines('s-statuses'), methods: lines('s-methods') };
+    people: lines('s-people'), recipients: lines('s-rcps'), addresses: lines('s-addrs'), carriers: lines('s-carriers'), statuses: lines('s-statuses'), methods: lines('s-methods') };
   if (st.people.indexOf(st.payer) < 0) { toast('代墊人必須在人員清單內', true); return; }
   if ([st.fee, st.card, st.reward].some(function (x) { return x === '' || isNaN(x); })) { toast('費率請填數字', true); return; }
   run('saveSettings', [st], '設定已儲存').then(load).catch(function () {});

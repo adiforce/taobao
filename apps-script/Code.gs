@@ -3,8 +3,8 @@
  * 貼在「買いもの_googleSheet」的 擴充功能 > Apps Script（容器綁定）
  * 只寫入「輸入欄」，計算欄（手續費、運費分攤、總額…）全部由試算表公式負責。
  */
-var PW_PREFIX = '';   // 登入密碼前綴（部署時自行填入；密碼 = 前綴 + 台北時間 MMddHH）
-var SS_ID = '';   // 容器綁定（從試算表開 Apps Script）時留空；獨立專案請填試算表 ID
+var PW_PREFIX = '';   // 密碼 = 前綴 + 台北時間 月日時(MMddHH)，例如 前綴+111315
+var SS_ID = '';
 var SH = { orders: '訂單', batches: '運費批次', pay: '付款紀錄', settle: '結算', set: '設定' };
 
 function doGet() {
@@ -78,7 +78,8 @@ function getSettings_() {
       .filter(function (x) { return x !== ''; });
   }
   return { fee: Number(b[0][0]), card: Number(b[1][0]), reward: Number(b[2][0]), payer: String(b[3][0]), rateType: String(b[4][0] || '即期賣出'),
-           people: col(4), statuses: col(6), methods: col(8), recipients: col(10, 20), addresses: col(12, 20) };
+           people: col(4), statuses: col(6), methods: col(8), recipients: col(10, 20), addresses: col(12, 20),
+           carriers: (function () { var c = s.getMaxColumns() >= 14 ? col(14, 10) : []; return c.length ? c : ['新竹貨運|https://www.sjlexpress.com/m/search?Num={num}']; })() };
 }
 
 function getOrders_() {
@@ -276,6 +277,10 @@ function saveSettings_(st) {
     s.getRange(2, 4, 8, 1).setValues(pad(st.people));
     s.getRange(2, 10, 20, 1).setValues(pad20(st.recipients));
     s.getRange(2, 12, 20, 1).setValues(pad20(st.addresses));
+    if (s.getMaxColumns() < 14) s.insertColumnsAfter(s.getMaxColumns(), 14 - s.getMaxColumns());
+    s.getRange(1, 14).setValue('集運公司|查詢網址');
+    var cr = (st.carriers || []).slice(0, 10); while (cr.length < 10) cr.push('');
+    s.getRange(2, 14, 10, 1).setValues(cr.map(function (x) { return [x]; }));
     s.getRange(2, 6, 8, 1).setValues(pad(st.statuses));
     s.getRange(2, 8, 8, 1).setValues(pad(st.methods));
     return true;
