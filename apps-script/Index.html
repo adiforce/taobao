@@ -204,7 +204,7 @@
       <span id="o-newwho" class="hide" style="display:flex;gap:6px"><input id="o-newwho-in" placeholder="新人員名稱"><button type="button" class="btn sm" onclick="addPersonInline()">加入</button></span></label>
     <label class="full">品名<input id="o-name"></label>
     <label>商品金額 ¥（含運；對方自己下標、只幫忙集運的可留空）<input type="number" id="o-cny" step="0.01" oninput="calcOrder()"></label>
-    <label>匯率 <span id="o-rate-note"></span>
+    <label><a href="https://rate.bot.com.tw/xrt/quote/ltm/CNY" target="_blank" rel="noopener" title="開啟臺灣銀行人民幣牌告匯率">匯率 🔗</a> <span id="o-rate-note"></span>
       <span style="display:flex;gap:6px"><input type="number" id="o-rate" step="0.001" oninput="rateManual('o');calcOrder()"><button type="button" class="btn sm" onclick="fetchRate('o')">取匯率</button></span></label>
     <label>重量 kg（集運後才知道，可先空白）<input type="number" id="o-weight" step="0.01"></label>
     <label>集運批次（待集運請留空）<select id="o-batch"></select></label>
@@ -230,7 +230,7 @@
     <label>計費公斤<input type="number" id="b-kg" step="0.01" oninput="autoShip()" onchange="kgBlank()"></label>
     <label>單價 ¥/kg<input type="number" id="b-unit" step="0.01" oninput="autoShip()"></label>
     <label>運費 ¥<input type="number" id="b-cny" step="0.01" oninput="this.dataset.manual=1;calcBatch()"></label>
-    <label>匯率 <span id="b-rate-note"></span>
+    <label><a href="https://rate.bot.com.tw/xrt/quote/ltm/CNY" target="_blank" rel="noopener" title="開啟臺灣銀行人民幣牌告匯率">匯率 🔗</a> <span id="b-rate-note"></span>
       <span style="display:flex;gap:6px"><input type="number" id="b-rate" step="0.001" oninput="rateManual('b');calcBatch()"><button type="button" class="btn sm" onclick="fetchRate('b')">取匯率</button></span></label>
     <label>收件人<select id="b-rcp"></select></label>
     <label>收件地址<select id="b-addr"></select></label>
