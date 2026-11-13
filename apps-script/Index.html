@@ -284,6 +284,13 @@
   <div class="actions"><button class="btn" onclick="closeM('m-stmt')">關閉</button><button class="btn pri" onclick="copyStmt()">複製（貼到 LINE）</button></div>
 </div></div>
 
+<div class="modal-bg" id="m-setpw"><div class="modal" style="max-width:340px;margin-top:12vh">
+  <h3>🔒 設定頁密碼</h3>
+  <input type="password" id="sp-pw" placeholder="設定密碼" style="width:100%" autocomplete="off" onkeydown="if(event.key==='Enter')doSetPw()">
+  <div id="sp-err" class="bad" style="margin-top:6px;min-height:18px"></div>
+  <div class="actions"><button class="btn" onclick="closeM('m-setpw')">取消</button><button class="btn pri" onclick="doSetPw()">進入設定</button></div>
+</div></div>
+
 <!-- 登入 -->
 <div class="modal-bg on" id="login" style="background:rgba(31,41,51,.92);z-index:200"><div class="modal" style="max-width:340px;margin-top:12vh">
   <h3>🛒 淘寶代購管理</h3>
@@ -322,6 +329,7 @@ function run(fn, args, okMsg) {
         busy(false, blk);
         var m = e && e.message ? e.message : String(e);
         if (m.indexOf('__AUTH__') >= 0) { showLogin('登入已逾時，請重新登入'); rej(e); return; }
+        if (m.indexOf('__SET__') >= 0) { toast('設定已鎖定，請重新輸入設定密碼', true); showTab('orders'); askSetPw(); rej(e); return; }
         toast(m.replace(/^Error:\s*/, ''), true); rej(e);
       });
     g.api(TOKEN, fn, args || []);
@@ -363,12 +371,22 @@ function renderAll() {
 }
 
 /* ---------- 分頁 ---------- */
+function showTab(t) {
+  curTab = t;
+  Array.prototype.forEach.call($('nav').children, function (b) { b.classList.toggle('on', b.getAttribute('data-t') === t); });
+  ['orders', 'batches', 'settle', 'pay', 'set'].forEach(function (k) { $('t-' + k).classList.toggle('hide', k !== t); });
+}
 $('nav').addEventListener('click', function (e) {
   var t = e.target.getAttribute && e.target.getAttribute('data-t'); if (!t) return;
-  curTab = t;
-  Array.prototype.forEach.call($('nav').children, function (b) { b.classList.toggle('on', b === e.target); });
-  ['orders', 'batches', 'settle', 'pay', 'set'].forEach(function (k) { $('t-' + k).classList.toggle('hide', k !== t); });
+  if (t === 'set' && curTab !== 'set') { askSetPw(); return; }     // 設定頁每次進入都要再輸入一次密碼
+  showTab(t);
 });
+function askSetPw() { $('sp-err').textContent = ''; $('sp-pw').value = ''; openM('m-setpw'); setTimeout(function () { $('sp-pw').focus(); }, 50); }
+function doSetPw() {
+  var pw = $('sp-pw').value; if (!pw) return;
+  run('unlockSettings', [pw]).then(function () { closeM('m-setpw'); showTab('set'); })
+    .catch(function () { $('sp-pw').value = ''; $('sp-pw').focus(); });
+}
 
 /* ---------- 訂單 ---------- */
 function noW(o) { return !(Number(o.weight) > 0); }
@@ -835,7 +853,7 @@ function saveSet() {
   run('saveSettings', [st], '設定已儲存').then(load).catch(function () {});
 }
 
-document.addEventListener('keydown', function (e) { if (e.key === 'Escape') { closeM('m-order'); closeM('m-batch'); } });
+document.addEventListener('keydown', function (e) { if (e.key === 'Escape') { closeM('m-order'); closeM('m-batch'); closeM('m-setpw'); } });
 
 /* ---------- 登入 ---------- */
 function showLogin(msg) {

@@ -274,6 +274,7 @@ function deletePayment_(p) {               // 以列號 + 內容雙重確認，�
 
 /* ---------- 設定 ---------- */
 function saveSettings_(st) {
+  if (!CacheService.getScriptCache().get('set:' + CUR_TOKEN_)) throw new Error('__SET__');
   return withLock_(function () {
     var s = sh_('set');
     s.getRange(2, 2, 5, 1).setValues([[Number(st.fee)], [Number(st.card)], [Number(st.reward)], [st.payer], [st.rateType || '即期賣出']]);
@@ -429,15 +430,32 @@ function login(pw) {
   return token;
 }
 
+/* ---------- 設定頁二次密碼：前綴 + 台北時間 yyMMHHmm + 後綴（前後各容許 1 分鐘） ---------- */
+var SET_SUFFIX = '';
+var CUR_TOKEN_ = '';
+function validSetPw_(pw) {
+  var now = new Date().getTime(), p = String(pw || '').trim();
+  return [-1, 0, 1].some(function (m) { return p === PW_PREFIX + Utilities.formatDate(new Date(now + m * 60000), 'Asia/Taipei', 'yyMMHHmm') + SET_SUFFIX; });
+}
+function unlockSettings_(pw) {
+  var cache = CacheService.getScriptCache(), fails = Number(cache.get('setfails') || 0);
+  if (fails >= 5) throw new Error('設定密碼錯誤次數過多，請 10 分鐘後再試');
+  if (!validSetPw_(pw)) { cache.put('setfails', String(fails + 1), 600); throw new Error('設定密碼錯誤'); }
+  cache.remove('setfails');
+  cache.put('set:' + CUR_TOKEN_, '1', 900);        // 解鎖後 15 分鐘內可儲存設定
+  return true;
+}
+
 var API_ = {
   getAll: getAll_, addOrder: addOrder_, updateOrder: updateOrder_, deleteOrder: deleteOrder_,
   addBatch: addBatch_, updateBatch: updateBatch_, deleteBatch: deleteBatch_,
   addPayment: addPayment_, deletePayment: deletePayment_, saveSettings: saveSettings_,
-  addPerson: addPerson_, bulkAssign: bulkAssign_, splitOrder: splitOrder_, setWeights: setWeights_, getRate: getRate_
+  addPerson: addPerson_, bulkAssign: bulkAssign_, splitOrder: splitOrder_, setWeights: setWeights_, getRate: getRate_, unlockSettings: unlockSettings_
 };
 
 function api(token, fn, args) {                    // 唯一的資料入口：沒有有效 token 一律拒絕
   if (!token || !CacheService.getScriptCache().get('tok:' + token)) throw new Error('__AUTH__');
   if (!Object.prototype.hasOwnProperty.call(API_, fn)) throw new Error('未知的操作：' + fn);
+  CUR_TOKEN_ = token;
   return API_[fn].apply(null, args || []);
 }
