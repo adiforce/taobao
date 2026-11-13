@@ -1,0 +1,692 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<base target="_top">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>淘寶代購管理</title>
+<style>
+  :root { --bg:#f6f7f9; --card:#fff; --line:#e3e6ea; --text:#1f2933; --sub:#6b7785; --accent:#e8590c; --accent-d:#c24a08; --ok:#2b8a3e; --bad:#c92a2a; --warn:#f08c00; }
+  * { box-sizing:border-box; }
+  body { margin:0; font-family:-apple-system,"Noto Sans TC","PingFang TC","Microsoft JhengHei",sans-serif; background:var(--bg); color:var(--text); font-size:14px; }
+  header { position:sticky; top:0; z-index:20; background:var(--card); border-bottom:1px solid var(--line); padding:8px 14px; display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
+  header h1 { font-size:16px; margin:0; }
+  nav { display:flex; gap:4px; flex:1; flex-wrap:wrap; }
+  nav button { border:0; background:transparent; padding:7px 12px; border-radius:6px; cursor:pointer; font-size:14px; color:var(--sub); }
+  nav button.on { background:#fff0e6; color:var(--accent-d); font-weight:600; }
+  main { padding:14px; max-width:1280px; margin:0 auto; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:8px; padding:12px; margin-bottom:14px; }
+  .bar { display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-bottom:10px; }
+  input, select, textarea { font:inherit; padding:6px 8px; border:1px solid #cfd5dc; border-radius:6px; background:#fff; max-width:100%; }
+  input:focus, select:focus, textarea:focus { outline:2px solid #ffd8bf; border-color:var(--accent); }
+  button.btn { font:inherit; border:1px solid #cfd5dc; background:#fff; padding:6px 12px; border-radius:6px; cursor:pointer; }
+  button.btn:hover { background:#f1f3f5; }
+  button.pri { background:var(--accent); border-color:var(--accent); color:#fff; }
+  button.pri:hover { background:var(--accent-d); }
+  button.danger { color:var(--bad); }
+  button.sm { padding:2px 8px; font-size:12px; }
+  .tablewrap { overflow:auto; max-height:70vh; border:1px solid var(--line); border-radius:6px; }
+  table { border-collapse:collapse; width:100%; background:#fff; }
+  th, td { padding:6px 8px; border-bottom:1px solid #eef0f2; text-align:left; white-space:nowrap; }
+  th { position:sticky; top:0; background:#f1f3f5; font-weight:600; z-index:1; }
+  td.n, th.n { text-align:right; font-variant-numeric:tabular-nums; }
+  td.wrap { white-space:normal; min-width:160px; }
+  tr:hover td { background:#fffaf5; }
+  .tag { display:inline-block; padding:1px 7px; border-radius:10px; font-size:12px; background:#e9ecef; }
+  .tag.s-已下單 { background:#e7f5ff; color:#1971c2; }
+  .tag.s-在集運倉 { background:#fff3bf; color:#8a6d00; }
+  .tag.s-已出貨 { background:#ffe8cc; color:#d9480f; }
+  .tag.s-已簽收 { background:#d3f9d8; color:var(--ok); }
+  .dup { background:#ffe3e3; color:var(--bad); font-weight:700; }
+  .muted { color:var(--sub); }
+  .ok { color:var(--ok); } .bad { color:var(--bad); } .warn { color:var(--warn); }
+  .grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:10px; }
+  .stat { background:#fff; border:1px solid var(--line); border-radius:8px; padding:10px 12px; }
+  .stat b { display:block; font-size:20px; margin-top:2px; }
+  .modal-bg { position:fixed; inset:0; background:rgba(0,0,0,.4); display:none; align-items:flex-start; justify-content:center; padding:24px 12px; overflow:auto; z-index:50; }
+  .modal-bg.on { display:flex; }
+  .modal { background:#fff; border-radius:10px; padding:16px; width:100%; max-width:560px; }
+  .modal h3 { margin:0 0 10px; }
+  .form { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+  .form label { display:flex; flex-direction:column; gap:3px; font-size:12px; color:var(--sub); }
+  .form label.full { grid-column:1 / -1; }
+  .form input, .form select, .form textarea { width:100%; color:var(--text); font-size:14px; }
+  .preview { grid-column:1 / -1; background:#fff8f0; border:1px dashed #ffc078; border-radius:6px; padding:8px 10px; font-size:13px; }
+  .actions { display:flex; gap:8px; justify-content:flex-end; margin-top:12px; align-items:center; }
+  #toast { position:fixed; bottom:18px; left:50%; transform:translateX(-50%); background:#212529; color:#fff; padding:8px 16px; border-radius:20px; display:none; z-index:99; max-width:90vw; }
+  #toast.err { background:var(--bad); }
+  #loading { position:fixed; top:0; left:0; right:0; height:3px; background:var(--accent); display:none; z-index:100; animation:ld 1s infinite; }
+  @keyframes ld { 0%{transform:scaleX(0);transform-origin:left} 50%{transform:scaleX(1);transform-origin:left} 51%{transform-origin:right} 100%{transform:scaleX(0);transform-origin:right} }
+  .hide { display:none !important; }
+  textarea.list { height:120px; }
+  a { color:#1971c2; text-decoration:none; } a:hover { text-decoration:underline; }
+  @media (max-width:600px) { .form { grid-template-columns:1fr; } }
+</style>
+</head>
+<body>
+<div id="loading"></div>
+<header>
+  <h1>🛒 淘寶代購管理</h1>
+  <nav id="nav">
+    <button data-t="orders" class="on">訂單</button>
+    <button data-t="batches">運費批次</button>
+    <button data-t="settle">結算</button>
+    <button data-t="pay">付款紀錄</button>
+    <button data-t="set">設定</button>
+  </nav>
+  <button class="btn" onclick="load()">↻ 重新整理</button>
+</header>
+
+<main>
+  <!-- 訂單 -->
+  <section id="t-orders">
+    <div class="card">
+      <div class="bar">
+        <input id="f-q" placeholder="搜尋品名 / 運單 / 備註" oninput="renderOrders()" style="min-width:180px">
+        <select id="f-status" onchange="renderOrders()"></select>
+        <select id="f-who" onchange="renderOrders()"></select>
+        <select id="f-batch" onchange="renderOrders()"></select>
+        <label><input type="checkbox" id="f-dup" onchange="renderOrders()"> 只看重複運單</label>
+        <label><input type="checkbox" id="f-nw" onchange="renderOrders()"> 只看未填重量</label>
+        <span style="flex:1"></span>
+        <button class="btn" onclick="openWeights()">⚖ 補重量</button>
+        <button class="btn pri" onclick="openOrder()">＋ 新增訂單</button>
+      </div>
+      <div id="o-pending" style="margin-bottom:8px"></div>
+      <div class="bar hide" id="bulk" style="background:#fff8f0;padding:6px 8px;border-radius:6px">已選 <b id="bulk-n">0</b> 筆　<select id="bulk-batch"></select><select id="bulk-status"></select><button class="btn pri" onclick="bulkApply()">套用</button><button class="btn" onclick="openShipInfo()">📋 出貨資訊</button><button class="btn" onclick="clearSel()">取消選取</button></div>
+      <div class="muted" id="o-sum" style="margin-bottom:8px"></div>
+      <div class="tablewrap"><table id="o-table"></table></div>
+    </div>
+  </section>
+
+  <!-- 運費批次 -->
+  <section id="t-batches" class="hide">
+    <div class="card">
+      <div class="bar"><b>集運批次</b><span class="muted">（重量差超過 ±2kg 會標橘色，通常是漏填或填錯品項重量）</span><span style="flex:1"></span>
+        <button class="btn pri" onclick="openBatch()">＋ 新增批次</button></div>
+      <div class="tablewrap"><table id="b-table"></table></div>
+    </div>
+  </section>
+
+  <!-- 結算 -->
+  <section id="t-settle" class="hide">
+    <div class="card"><b>各人應付</b>
+      <div class="muted" style="margin:4px 0 8px">應付只計入「已歸批次」的訂單（運費已分攤）；尚未歸批次的商品列在「待出貨」，運費還沒算進去。</div>
+      <div class="tablewrap"><table id="s-table"></table></div>
+      <div id="s-check" style="margin-top:8px"></div>
+    </div>
+    <div class="card"><b>批次 × 人員分攤（台幣）</b>
+      <div class="tablewrap" style="margin-top:8px"><table id="m-table"></table></div>
+    </div>
+  </section>
+
+  <!-- 付款 -->
+  <section id="t-pay" class="hide">
+    <div class="card">
+      <b>登記付款</b>
+      <div class="bar" style="margin-top:8px">
+        <input type="date" id="p-date">
+        <select id="p-who"></select>
+        <input type="number" id="p-amt" placeholder="金額(台)" step="1" style="width:110px">
+        <select id="p-method"></select>
+        <select id="p-batch"></select>
+        <input id="p-note" placeholder="備註" style="min-width:140px">
+        <button class="btn pri" onclick="addPay()">登記</button>
+      </div>
+    </div>
+    <div class="card">
+      <div class="bar"><b>付款紀錄</b><select id="p-filter" onchange="renderPay()"></select></div>
+      <div class="tablewrap"><table id="p-table"></table></div>
+    </div>
+  </section>
+
+  <!-- 設定 -->
+  <section id="t-set" class="hide">
+    <div class="card" style="max-width:640px">
+      <b>費率與清單</b>
+      <div class="form" style="margin-top:10px">
+        <label>淘寶交易手續費率（0.03 = 3%）<input type="number" id="s-fee" step="0.001"></label>
+        <label>刷卡手續費率<input type="number" id="s-card" step="0.001"></label>
+        <label>刷卡回饋率（預設）<input type="number" id="s-reward" step="0.001"></label>
+        <label>代墊人（收款人）<select id="s-payer"></select></label>
+        <label>匯率來源（臺灣銀行牌告，人民幣）<select id="s-rtype"></select></label>
+        <label>人員（一行一個，最多 8）<textarea class="list" id="s-people"></textarea></label>
+        <label>狀態（一行一個，最多 8）<textarea class="list" id="s-statuses"></textarea></label>
+        <label>付款方式（一行一個，最多 8）<textarea class="list" id="s-methods"></textarea></label>
+      </div>
+      <div class="actions"><button class="btn pri" onclick="saveSet()">儲存設定</button></div>
+      <div class="muted" style="margin-top:8px">改費率會影響整份試算表所有訂單的重新計算（含歷史訂單）。</div>
+    </div>
+  </section>
+</main>
+
+<!-- 訂單 modal -->
+<div class="modal-bg" id="m-order"><div class="modal">
+  <h3 id="mo-title">新增訂單</h3>
+  <div class="form">
+    <label>下單日<input type="date" id="o-date" onchange="dateChanged('o')"></label>
+    <label>WHO<select id="o-who" onchange="whoChange()"></select>
+      <span id="o-newwho" class="hide" style="display:flex;gap:6px"><input id="o-newwho-in" placeholder="新人員名稱"><button type="button" class="btn sm" onclick="addPersonInline()">加入</button></span></label>
+    <label class="full">品名<input id="o-name"></label>
+    <label>商品金額 ¥（含運）<input type="number" id="o-cny" step="0.01" oninput="calcOrder()"></label>
+    <label>匯率 <span id="o-rate-note"></span>
+      <span style="display:flex;gap:6px"><input type="number" id="o-rate" step="0.001" oninput="rateManual('o');calcOrder()"><button type="button" class="btn sm" onclick="fetchRate('o')">取匯率</button></span></label>
+    <label>重量 kg（集運後才知道，可先空白）<input type="number" id="o-weight" step="0.01"></label>
+    <label>集運批次（待集運請留空）<select id="o-batch"></select></label>
+    <label>運單編號<input id="o-track" inputmode="numeric"></label>
+    <label>淘寶訂單號<input id="o-tb" inputmode="numeric"></label>
+    <label>狀態<select id="o-status"></select></label>
+    <label>備註<input id="o-note"></label>
+    <div class="preview" id="o-prev"></div>
+  </div>
+  <div class="actions">
+    <label class="muted" id="o-again-wrap"><input type="checkbox" id="o-again"> 存完繼續新增</label>
+    <button class="btn" onclick="closeM('m-order')">取消</button>
+    <button class="btn pri" id="o-save" onclick="saveOrder()">儲存</button>
+  </div>
+</div></div>
+
+<!-- 批次 modal -->
+<div class="modal-bg" id="m-batch"><div class="modal">
+  <h3 id="mb-title">新增批次</h3>
+  <div class="form">
+    <label>日期<input type="date" id="b-date" onchange="dateChanged('b')"></label>
+    <label>批次名稱（空白＝日期＋公斤）<input id="b-name"></label>
+    <label>計費公斤<input type="number" id="b-kg" step="0.01" oninput="autoShip()"></label>
+    <label>單價 ¥/kg<input type="number" id="b-unit" step="0.01" oninput="autoShip()"></label>
+    <label>運費 ¥<input type="number" id="b-cny" step="0.01" oninput="this.dataset.manual=1;calcBatch()"></label>
+    <label>匯率 <span id="b-rate-note"></span>
+      <span style="display:flex;gap:6px"><input type="number" id="b-rate" step="0.001" oninput="rateManual('b');calcBatch()"><button type="button" class="btn sm" onclick="fetchRate('b')">取匯率</button></span></label>
+    <label class="full">收件地址（本次寄回台灣；可選舊地址或直接輸入新的）<input id="b-addr" list="addr-list"><datalist id="addr-list"></datalist></label>
+    <label class="full">貨態連結或運單號（只填單號會自動組成 sjlexpress 連結）<input id="b-link"></label>
+    <label class="full">備註<input id="b-note"></label>
+    <div class="preview" id="b-prev"></div>
+  </div>
+  <div class="actions">
+    <button class="btn" onclick="closeM('m-batch')">取消</button>
+    <button class="btn pri" onclick="saveBatch()">儲存</button>
+  </div>
+</div></div>
+
+<!-- 拆單 modal -->
+<div class="modal-bg" id="m-split"><div class="modal">
+  <h3 id="sp-title">拆單</h3>
+  <div class="muted" id="sp-info" style="margin-bottom:8px"></div>
+  <table id="sp-table"></table>
+  <div class="bar" style="margin-top:8px"><button class="btn sm" onclick="spAdd()">＋ 加一份</button><span id="sp-sum"></span></div>
+  <div class="actions"><button class="btn" onclick="closeM('m-split')">取消</button><button class="btn pri" onclick="saveSplit()">拆單</button></div>
+</div></div>
+
+<!-- 補重量 modal -->
+<div class="modal-bg" id="m-weights"><div class="modal" style="max-width:760px">
+  <h3>補重量</h3>
+  <div class="bar"><select id="w-batch" onchange="renderWeights()"></select><label><input type="checkbox" id="w-only" checked onchange="renderWeights()"> 只列未填重量</label></div>
+  <div class="tablewrap" style="max-height:55vh"><table id="w-table"></table></div>
+  <div class="actions"><span class="muted" id="w-sum" style="flex:1"></span><button class="btn" onclick="closeM('m-weights')">取消</button><button class="btn pri" onclick="saveWeights()">儲存</button></div>
+</div></div>
+
+<!-- 出貨資訊 modal -->
+<div class="modal-bg" id="m-ship"><div class="modal">
+  <h3>集運出貨資訊</h3>
+  <div class="form">
+    <label class="full">收件資料（地址、姓名、電話；本次集運寄回台灣的，可直接改）<textarea id="sh-addr" rows="3" oninput="buildShip()"></textarea></label>
+    <label class="full">產生結果（可再修改，按複製）<textarea id="sh-out" rows="9"></textarea></label>
+  </div>
+  <div class="actions"><button class="btn" onclick="closeM('m-ship')">關閉</button><button class="btn pri" onclick="copyShip()">複製</button></div>
+</div></div>
+
+<!-- 登入 -->
+<div class="modal-bg on" id="login" style="background:rgba(31,41,51,.92);z-index:200"><div class="modal" style="max-width:340px;margin-top:12vh">
+  <h3>🛒 淘寶代購管理</h3>
+  <div class="form" style="grid-template-columns:1fr"><label>密碼<input type="password" id="lg-pw" autocomplete="off" onkeydown="if(event.key==='Enter')doLogin()"></label></div>
+  <div id="lg-err" class="bad" style="margin-top:8px;min-height:18px"></div>
+  <div class="actions"><button class="btn pri" id="lg-btn" onclick="doLogin()">登入</button></div>
+</div></div>
+
+<div id="toast"></div>
+
+<script>
+var TOKEN = '', D = null, curTab = 'orders', editId = null, editBatch = null;
+
+/* ---------- 共用 ---------- */
+function $(id) { return document.getElementById(id); }
+function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]; }); }
+function fmt(n, d) { if (n === '' || n == null || isNaN(n)) return ''; d = d == null ? 2 : d; return Number(n).toLocaleString('zh-TW', { minimumFractionDigits: d, maximumFractionDigits: d }); }
+function r2(x) { return Math.round(x * 100) / 100; }
+function today() { var d = new Date(); return d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2) + '-' + ('0' + d.getDate()).slice(-2); }
+function toast(msg, err) { var t = $('toast'); t.textContent = msg; t.className = err ? 'err' : ''; t.style.display = 'block'; clearTimeout(toast.h); toast.h = setTimeout(function () { t.style.display = 'none'; }, err ? 5000 : 2200); }
+function busy(on) { $('loading').style.display = on ? 'block' : 'none'; }
+function run(fn, args, okMsg) {
+  busy(true);
+  return new Promise(function (res, rej) {
+    var g = google.script.run.withSuccessHandler(function (r) { busy(false); if (okMsg) toast(okMsg); res(r); })
+      .withFailureHandler(function (e) {
+        busy(false);
+        var m = e && e.message ? e.message : String(e);
+        if (m.indexOf('__AUTH__') >= 0) { showLogin('登入已逾時，請重新登入'); rej(e); return; }
+        toast(m.replace(/^Error:\s*/, ''), true); rej(e);
+      });
+    g.api(TOKEN, fn, args || []);
+  });
+}
+function opts(list, blank, sel) {
+  return (blank != null ? '<option value="">' + esc(blank) + '</option>' : '') +
+    list.map(function (x) { return '<option' + (x === sel ? ' selected' : '') + '>' + esc(x) + '</option>'; }).join('');
+}
+function closeM(id) { $(id).classList.remove('on'); }
+function openM(id) { $(id).classList.add('on'); }
+function linkOf(batchName) { var b = D.batches.filter(function (x) { return x.name === batchName; })[0]; return b && b.link ? b.link : ''; }
+
+/* ---------- 載入 ---------- */
+function load() {
+  return run('getAll').then(function (d) { D = d; renderAll(); }).catch(function () {});
+}
+function renderAll() {
+  var s = D.settings;
+  var keep = { st: $('f-status').value, who: $('f-who').value, b: $('f-batch').value, pf: $('p-filter').value };
+  $('f-status').innerHTML = opts(s.statuses, '所有狀態', keep.st);
+  $('f-who').innerHTML = opts(s.people, '所有人', keep.who);
+  $('f-batch').innerHTML = '<option value="">所有批次</option><option value="__none">（未歸批次）</option>' + D.batches.map(function (b) { return '<option' + (b.name === keep.b ? ' selected' : '') + '>' + esc(b.name) + '</option>'; }).join('');
+  if (keep.b === '__none') $('f-batch').value = '__none';
+  $('p-who').innerHTML = opts(s.people.filter(function (p) { return p !== s.payer; }));
+  $('p-method').innerHTML = opts(s.methods);
+  $('p-batch').innerHTML = opts(D.batches.map(function (b) { return b.name; }), '（對應批次，可空）');
+  $('p-filter').innerHTML = opts(s.people, '所有人', keep.pf);
+  $('bulk-batch').innerHTML = '<option value="__keep">（批次不變）</option><option value="__none">（清空批次）</option>' + D.batches.slice().reverse().map(function (b) { return '<option>' + esc(b.name) + '</option>'; }).join('');
+  $('bulk-status').innerHTML = opts(s.statuses, '（狀態不變）');
+  var addrs = {}; D.batches.forEach(function (b) { if (b.addr) addrs[b.addr] = 1; });
+  $('addr-list').innerHTML = Object.keys(addrs).map(function (a) { return '<option value="' + esc(a) + '">'; }).join('');
+  $('s-rtype').innerHTML = opts(['即期賣出', '即期買入', '現金賣出', '現金買入', '中間價'], null, s.rateType);
+  if (!$('p-date').value) $('p-date').value = today();
+  $('s-fee').value = s.fee; $('s-card').value = s.card; $('s-reward').value = s.reward;
+  $('s-payer').innerHTML = opts(s.people, null, s.payer);
+  $('s-people').value = s.people.join('\n'); $('s-statuses').value = s.statuses.join('\n'); $('s-methods').value = s.methods.join('\n');
+  renderOrders(); renderBatches(); renderSettle(); renderPay();
+}
+
+/* ---------- 分頁 ---------- */
+$('nav').addEventListener('click', function (e) {
+  var t = e.target.getAttribute && e.target.getAttribute('data-t'); if (!t) return;
+  curTab = t;
+  Array.prototype.forEach.call($('nav').children, function (b) { b.classList.toggle('on', b === e.target); });
+  ['orders', 'batches', 'settle', 'pay', 'set'].forEach(function (k) { $('t-' + k).classList.toggle('hide', k !== t); });
+});
+
+/* ---------- 訂單 ---------- */
+function noW(o) { return !(Number(o.weight) > 0); }
+var SEL = {}, visibleIds = [];
+function renderOrders() {
+  if (!D) return;
+  var q = $('f-q').value.trim().toLowerCase(), st = $('f-status').value, who = $('f-who').value, bt = $('f-batch').value, dup = $('f-dup').checked, nw = $('f-nw').checked;
+  var pend = D.orders.filter(function (o) { return o.batch === ''; }), pk = 0, pn = 0;
+  pend.forEach(function (o) { if (noW(o)) pn++; else pk += Number(o.weight); });
+  $('o-pending').innerHTML = '📦 待集運（未歸批次）：<b>' + pend.length + '</b> 筆，已知重量 <b>' + fmt(pk, 1) + '</b> kg' + (pn ? '，<span class="warn">' + pn + ' 筆還沒填重量</span>' : '');
+  var rows = D.orders.filter(function (o) {
+    if (st && o.status !== st) return false;
+    if (who && o.who !== who) return false;
+    if (bt === '__none' ? o.batch !== '' : (bt && o.batch !== bt)) return false;
+    if (dup && !o.dup) return false;
+    if (nw && !noW(o)) return false;
+    if (q && (o.name + ' ' + o.track + ' ' + o.tb + ' ' + o.note + ' ' + o.id).toLowerCase().indexOf(q) < 0) return false;
+    return true;
+  }).sort(function (a, b) { return a.date < b.date ? 1 : a.date > b.date ? -1 : b.row - a.row; });
+  visibleIds = rows.map(function (o) { return o.id; });
+  var sum = 0, cny = 0; rows.forEach(function (o) { sum += Number(o.total) || Number(o.twd) || 0; cny += Number(o.cny) || 0; });
+  $('o-sum').textContent = rows.length + ' 筆　商品 ¥' + fmt(cny) + '　台幣合計 ' + fmt(sum) + '（已歸批次者含運費）';
+  var h = '<tr><th><input type="checkbox" onchange="selAll(this.checked)" title="全選目前列表"></th><th>日期</th><th>品名</th><th>運單</th><th>淘寶訂單號</th><th class="n">kg</th><th>WHO</th><th class="n">¥</th><th class="n">匯率</th><th class="n">商品台幣</th><th class="n">運費占比</th><th class="n">運費分攤</th><th class="n">總額</th><th>批次</th><th>狀態</th><th>備註</th><th></th></tr>';
+  rows.forEach(function (o) {
+    var lk = linkOf(o.batch), idq = '\'' + esc(o.id) + '\'';
+    h += '<tr><td><input type="checkbox"' + (SEL[o.id] ? ' checked' : '') + ' onchange="toggleSel(' + idq + ', this.checked)"></td>' +
+      '<td>' + esc(o.date) + '</td><td class="wrap">' + esc(o.name) + '</td><td' + (o.dup ? ' class="dup"' : '') + '>' + esc(o.track) + (o.dup ? ' ⚠重複' : '') + '</td>' +
+      '<td class="muted">' + esc(o.tb) + '</td>' +
+      '<td class="n">' + (noW(o) ? (o.batch ? '<span class="warn">未填</span>' : '<span class="muted">-</span>') : fmt(o.weight)) + '</td><td>' + esc(o.who) + '</td><td class="n">' + fmt(o.cny) + '</td><td class="n">' + fmt(o.rate, 3) + '</td>' +
+      '<td class="n">' + fmt(o.twd) + '</td><td class="n">' + (o.share === '' ? '' : fmt(o.share * 100, 1) + '%') + '</td><td class="n">' + fmt(o.ship) + '</td><td class="n"><b>' + fmt(o.total) + '</b></td>' +
+      '<td>' + (lk ? '<a href="' + esc(lk) + '" target="_blank" rel="noopener">' + esc(o.batch) + ' 📦</a>' : esc(o.batch)) + '</td>' +
+      '<td><span class="tag s-' + esc(o.status) + '">' + esc(o.status) + '</span></td><td class="wrap muted">' + esc(o.note) + '</td>' +
+      '<td><button class="btn sm" onclick="openOrder(' + idq + ')">編輯</button> <button class="btn sm" onclick="openSplit(' + idq + ')">拆單</button> <button class="btn sm danger" onclick="delOrder(' + idq + ')">刪</button></td></tr>';
+  });
+  $('o-table').innerHTML = h;
+  renderBulk();
+}
+
+/* ----- 訂單表單 ----- */
+var lastRate = '', editOrderKeep = {};
+function openOrder(id) {
+  editId = id || null;
+  var s = D.settings, o = id ? D.orders.filter(function (x) { return x.id === id; })[0] : null;
+  $('mo-title').textContent = o ? '編輯訂單 ' + o.id : '新增訂單';
+  $('o-again-wrap').style.display = o ? 'none' : '';
+  $('o-who').innerHTML = opts(s.people, null, o ? o.who : (editOrderKeep.who || s.payer)) + '<option value="__new">＋ 新增人員…</option>';
+  $('o-newwho').classList.add('hide'); $('o-newwho-in').value = '';
+  $('o-batch').innerHTML = opts(D.batches.map(function (b) { return b.name; }), '（未歸批次／待集運）', o ? o.batch : '');
+  $('o-status').innerHTML = opts(s.statuses, null, o ? o.status : s.statuses[0]);
+  $('o-date').value = o ? o.date : (editOrderKeep.date || today());
+  $('o-name').value = o ? o.name : '';
+  $('o-cny').value = o ? o.cny : '';
+  $('o-rate').value = o ? o.rate : (editOrderKeep.rate || lastRate || '');
+  $('o-rate').dataset.manual = o ? '1' : '';
+  $('o-rate-note').textContent = '';
+  $('o-weight').value = o ? o.weight : '';
+  $('o-track').value = o ? o.track : '';
+  $('o-tb').value = o ? o.tb : '';
+  $('o-note').value = o ? o.note : '';
+  calcOrder(); openM('m-order'); $('o-name').focus();
+  if (!o) fetchRate('o', true);
+}
+function whoChange() { $('o-newwho').classList.toggle('hide', $('o-who').value !== '__new'); if ($('o-who').value === '__new') $('o-newwho-in').focus(); }
+function addPersonInline() {
+  var n = $('o-newwho-in').value.trim(); if (!n) return;
+  run('addPerson', [n], '已加入 ' + n).then(function () { return run('getAll'); }).then(function (d) {
+    D = d; renderAll();
+    $('o-who').innerHTML = opts(D.settings.people, null, n) + '<option value="__new">＋ 新增人員…</option>';
+    whoChange();
+  }).catch(function () {});
+}
+function rateManual(p) { $(p + '-rate').dataset.manual = '1'; }
+function dateChanged(p) { if (p === 'b' ? !editBatch : !editId) { if (!$(p + '-rate').dataset.manual) fetchRate(p, true); } }
+function fetchRate(p, silent) {
+  var date = $(p + '-date').value;
+  return run('getRate', [date]).then(function (r) {
+    if (silent && $(p + '-rate').dataset.manual) return;
+    $(p + '-rate').value = r.rate; if (!silent) $(p + '-rate').dataset.manual = '';
+    $(p + '-rate-note').textContent = '（' + r.source + ' ' + r.date + ' ' + r.type + (r.date !== date ? '；' + date + ' 無牌價，取最近營業日' : '') + '）';
+    if (p === 'o') calcOrder(); else calcBatch();
+  }).catch(function () {});
+}
+function calcOrder() {
+  var s = D.settings, g = parseFloat($('o-cny').value), rate = parseFloat($('o-rate').value);
+  if (isNaN(g) || isNaN(rate)) { $('o-prev').textContent = '填入金額與匯率後顯示台幣試算'; return; }
+  var f1 = g * s.fee, f2 = (g + f1) * s.card, rw = (g + f1 + f2) * s.reward, twd = r2((g + f1 + f2 - rw) * rate);
+  $('o-prev').innerHTML = '淘寶手續費 ¥' + fmt(f1) + '　刷卡手續費 ¥' + fmt(f2) + '　刷卡回饋 -¥' + fmt(rw) + '<br><b>商品台幣約 ' + fmt(twd) + '</b>（運費等集運批次與重量確定後由試算表自動分攤）';
+}
+function saveOrder() {
+  if ($('o-who').value === '__new') { toast('請先按「加入」新增人員，或改選現有人員', true); return; }
+  var o = { id: editId, date: $('o-date').value, name: $('o-name').value, track: $('o-track').value, tb: $('o-tb').value, weight: $('o-weight').value, who: $('o-who').value,
+    cny: $('o-cny').value, rate: $('o-rate').value, batch: $('o-batch').value, status: $('o-status').value, note: $('o-note').value };
+  var again = !editId && $('o-again').checked;
+  run(editId ? 'updateOrder' : 'addOrder', [o], '已儲存').then(function () {
+    lastRate = o.rate;
+    if (again) { editOrderKeep = { who: o.who, date: o.date, rate: o.rate }; closeM('m-order'); return load().then(function () { openOrder(); }); }
+    editOrderKeep = {}; closeM('m-order'); return load();
+  }).catch(function () {});
+}
+function delOrder(id) {
+  var o = D.orders.filter(function (x) { return x.id === id; })[0];
+  if (!confirm('確定刪除？\n' + o.id + ' ' + o.name + '（' + o.who + '）')) return;
+  run('deleteOrder', [id], '已刪除').then(load).catch(function () {});
+}
+
+/* ---------- 批次 ---------- */
+function renderBatches() {
+  var h = '<tr><th>批次</th><th>日期</th><th class="n">計費kg</th><th class="n">¥/kg</th><th class="n">運費¥</th><th class="n">匯率</th><th class="n">運費台幣</th><th class="n">品項數</th><th class="n">未填重量</th><th class="n">品項重量合計</th><th class="n">重量差</th><th class="n">物品台幣</th><th class="n">批次總額</th><th>貨態</th><th>收件地址</th><th>備註</th><th></th></tr>';
+  D.batches.slice().reverse().forEach(function (b) {
+    var bad = typeof b.wdiff === 'number' && Math.abs(b.wdiff) > 2;
+    var miss = D.orders.filter(function (o) { return o.batch === b.name && noW(o); }).length;
+    h += '<tr><td><a href="#" data-b="' + esc(b.name) + '" onclick="toggleBatch(this.dataset.b);return false">' + (OPEN[b.name] ? '▼ ' : '▶ ') + esc(b.name) + '</a></td><td>' + esc(b.date) + '</td><td class="n">' + fmt(b.kg) + '</td><td class="n">' + fmt(b.unit) + '</td><td class="n">' + fmt(b.cny) + '</td><td class="n">' + fmt(b.rate, 3) + '</td>' +
+      '<td class="n">' + fmt(b.twd) + '</td><td class="n">' + fmt(b.count, 0) + '</td><td class="n">' + (miss ? '<b class="bad">' + miss + '</b>' : '<span class="muted">0</span>') + '</td><td class="n">' + fmt(b.wsum, 1) + '</td><td class="n' + (bad ? ' warn' : '') + '"' + (bad ? ' style="background:#fff3bf"' : '') + '>' + fmt(b.wdiff, 1) + '</td>' +
+      '<td class="n">' + fmt(b.itemTwd) + '</td><td class="n"><b>' + fmt(b.total) + '</b></td>' +
+      '<td>' + (b.link ? '<a href="' + esc(b.link) + '" target="_blank" rel="noopener">查貨態 📦</a>' : '') + '</td><td class="wrap">' + esc(b.addr) + '</td><td class="wrap muted">' + esc(b.note) + '</td>' +
+      '<td><button class="btn sm" onclick="openBatch(\'' + esc(b.name) + '\')">編輯</button> <button class="btn sm danger" onclick="delBatch(\'' + esc(b.name) + '\')">刪</button></td></tr>';
+    if (OPEN[b.name]) h += '<tr><td colspan="17" style="background:#fafbfc;white-space:normal">' + batchDetail(b) + '</td></tr>';
+  });
+  $('b-table').innerHTML = h;
+}
+var OPEN = {}, SHIPIDS = null;
+function toggleBatch(name) { if (OPEN[name]) delete OPEN[name]; else OPEN[name] = 1; renderBatches(); }
+function batchDetail(b) {
+  var rows = D.orders.filter(function (o) { return o.batch === b.name; }).sort(function (x, y) { return x.row - y.row; });
+  if (!rows.length) return '<span class="muted">這個批次還沒有品項（到訂單頁勾選訂單後歸入此批次）</span>';
+  var groups = {}, seen = [];
+  rows.forEach(function (o) { if (!groups[o.who]) { groups[o.who] = []; seen.push(o.who); } groups[o.who].push(o); });
+  var people = D.settings.people.filter(function (p) { return groups[p]; }).concat(seen.filter(function (p) { return D.settings.people.indexOf(p) < 0; }));
+  var gt = 0, h = '';
+  people.forEach(function (w) {
+    var list = groups[w], item = 0, ship = 0, tot = 0;
+    list.forEach(function (o) { item += Number(o.twd) || 0; ship += Number(o.ship) || 0; tot += Number(o.total) || 0; });
+    gt += tot;
+    var paid = D.payments.filter(function (p) { return p.who === w && p.batch === b.name; }).reduce(function (s, p) { return s + (Number(p.amount) || 0); }, 0);
+    h += '<div style="margin:10px 0 4px"><b>' + esc(w) + '</b>　' + list.length + ' 筆　商品 ' + fmt(item) + ' ＋ 運費 ' + fmt(ship) + ' ＝ <b>' + fmt(tot) + '</b>' + (paid ? '　<span class="ok">此批已登記付款 ' + fmt(paid) + '</span>' : '') + '</div>';
+    h += '<table style="width:100%"><tr><th>日期</th><th>品名</th><th>運單</th><th class="n">kg</th><th class="n">商品台幣</th><th class="n">運費占比</th><th class="n">運費分攤</th><th class="n">小計</th></tr>';
+    list.forEach(function (o) {
+      h += '<tr><td>' + esc(o.date) + '</td><td class="wrap">' + esc(o.name) + '</td><td>' + esc(o.track) + '</td>' +
+        '<td class="n">' + (noW(o) ? '<span class="warn">未填</span>' : fmt(o.weight)) + '</td><td class="n">' + fmt(o.twd) + '</td><td class="n">' + (o.share === '' ? '' : fmt(o.share * 100, 1) + '%') + '</td><td class="n">' + fmt(o.ship) + '</td><td class="n"><b>' + fmt(o.total) + '</b></td></tr>';
+    });
+    h += '</table>';
+  });
+  h += '<div style="margin:10px 0"><b>批次合計 ' + fmt(gt) + '</b>（其中運費 ' + fmt(b.twd) + '）　<button class="btn sm" data-b="' + esc(b.name) + '" onclick="batchShip(this.dataset.b)">📋 這批出貨資訊</button></div>';
+  return h;
+}
+function batchShip(name) {
+  var b = D.batches.filter(function (x) { return x.name === name; })[0];
+  SHIPIDS = D.orders.filter(function (o) { return o.batch === name; }).map(function (o) { return o.id; });
+  if (!SHIPIDS.length) { toast('這個批次沒有品項', true); return; }
+  $('sh-addr').value = b && b.addr ? b.addr : $('sh-addr').value;
+  buildShip(); openM('m-ship');
+}
+function openBatch(name) {
+  editBatch = name || null;
+  var b = name ? D.batches.filter(function (x) { return x.name === name; })[0] : null;
+  $('mb-title').textContent = b ? '編輯批次' : '新增批次';
+  $('b-date').value = b ? b.date : today(); $('b-name').value = b ? b.name : '';
+  $('b-kg').value = b ? b.kg : ''; $('b-unit').value = b ? b.unit : ''; $('b-cny').value = b ? b.cny : '';
+  $('b-cny').dataset.manual = b ? '1' : '';
+  $('b-rate').value = b ? b.rate : ''; $('b-rate').dataset.manual = b ? '1' : ''; $('b-rate-note').textContent = '';
+  $('b-link').value = b ? b.link : ''; $('b-note').value = b ? b.note : '';
+  $('b-addr').value = b ? b.addr : (D.batches.length ? D.batches[D.batches.length - 1].addr : '');
+  calcBatch(); openM('m-batch');
+  if (!b) fetchRate('b', true);
+}
+function autoShip() {
+  var kg = parseFloat($('b-kg').value), u = parseFloat($('b-unit').value);
+  if (!$('b-cny').dataset.manual && !isNaN(kg) && !isNaN(u)) $('b-cny').value = r2(kg * u);
+  calcBatch();
+}
+function calcBatch() {
+  var s = D.settings, g = parseFloat($('b-cny').value), rate = parseFloat($('b-rate').value);
+  if (isNaN(g) || isNaN(rate)) { $('b-prev').textContent = '填入運費 ¥ 與匯率後顯示台幣'; return; }
+  var f1 = g * s.fee, f2 = (g + f1) * s.card;
+  $('b-prev').innerHTML = '運費台幣約 <b>' + fmt(r2((g + f1 + f2) * (1 - s.reward) * rate)) + '</b>（與訂單相同的手續費／回饋算法）。實際單價有時不是 kg × 單價，運費 ¥ 可手動改。';
+}
+function saveBatch() {
+  var link = $('b-link').value.trim();
+  if (link && !/^https?:\/\//i.test(link)) link = 'https://www.sjlexpress.com/m/search?Num=' + encodeURIComponent(link);
+  var b = { oldName: editBatch, name: $('b-name').value, date: $('b-date').value, kg: $('b-kg').value, unit: $('b-unit').value,
+    cny: $('b-cny').value, rate: $('b-rate').value, link: link, addr: $('b-addr').value.trim(), note: $('b-note').value };
+  run(editBatch ? 'updateBatch' : 'addBatch', [b], '已儲存').then(function () { closeM('m-batch'); return load(); }).catch(function () {});
+}
+function delBatch(name) {
+  if (!confirm('刪除批次「' + name + '」？')) return;
+  run('deleteBatch', [name], '已刪除').then(load).catch(function () {});
+}
+
+/* ---------- 結算 ---------- */
+function renderSettle() {
+  var S = D.settings, st = D.settle;
+  var h = '<tr><th>人員</th><th class="n">應付（已歸批次）</th><th class="n">已付</th><th class="n">未付</th><th class="n">待出貨商品（未計運費）</th></tr>';
+  st.persons.forEach(function (p) {
+    var un = typeof p.unpaid === 'number' ? '<b class="' + (p.unpaid > 0.5 ? 'bad' : 'ok') + '">' + fmt(p.unpaid) + '</b>' : '<span class="muted">' + esc(p.unpaid) + '</span>';
+    h += '<tr><td>' + esc(p.who) + '</td><td class="n">' + fmt(p.due) + '</td><td class="n">' + fmt(p.paid) + '</td><td class="n">' + un + '</td><td class="n">' + fmt(p.pending) + '</td></tr>';
+  });
+  h += '<tr><td><b>合計</b></td><td class="n"><b>' + fmt(st.total.due) + '</b></td><td class="n"><b>' + fmt(st.total.paid) + '</b></td><td class="n"><b>' + fmt(st.total.unpaid) + '</b></td><td class="n"><b>' + fmt(st.total.pending) + '</b></td></tr>';
+  $('s-table').innerHTML = h;
+  var ok = Math.abs(st.check) < 0.5;
+  $('s-check').innerHTML = ok ? '<span class="ok">✔ 核對無誤（所有訂單總額 = 已歸批次 + 待出貨）</span>' :
+    '<span class="bad">⚠ 核對差 ' + fmt(st.check) + '：可能有 WHO 不在人員清單，或訂單的批次名稱不存在</span>';
+  var lack = D.batches.map(function (b) { var n = D.orders.filter(function (o) { return o.batch === b.name && noW(o); }).length; return n ? b.name + '（' + n + ' 筆）' : ''; }).filter(Boolean);
+  if (lack.length) $('s-check').innerHTML += '<div class="warn" style="margin-top:6px">⚠ 這些批次還有品項未填重量，運費分攤暫時不準：' + esc(lack.join('、')) + '</div>';
+  var m = '<tr><th>批次</th>' + st.cols.map(function (c) { return '<th class="n">' + esc(c) + '</th>'; }).join('') + '<th class="n">合計</th></tr>';
+  st.matrix.slice().reverse().forEach(function (r) {
+    m += '<tr><td>' + esc(r.batch) + '</td>' + st.cols.map(function (c) { var v = r.cells[c]; return '<td class="n">' + (v ? fmt(v) : '<span class="muted">-</span>') + '</td>'; }).join('') + '<td class="n"><b>' + fmt(r.total) + '</b></td></tr>';
+  });
+  $('m-table').innerHTML = m;
+}
+
+/* ---------- 付款 ---------- */
+function renderPay() {
+  if (!D) return;
+  var f = $('p-filter').value;
+  var rows = D.payments.filter(function (p) { return !f || p.who === f; }).sort(function (a, b) { return a.date < b.date ? 1 : a.date > b.date ? -1 : b.row - a.row; });
+  var h = '<tr><th>日期</th><th>付款人</th><th class="n">金額(台)</th><th>方式</th><th>對應批次</th><th>備註</th><th></th></tr>';
+  rows.forEach(function (p) {
+    h += '<tr><td>' + esc(p.date) + '</td><td>' + esc(p.who) + '</td><td class="n">' + fmt(p.amount, 0) + '</td><td>' + esc(p.method) + '</td><td>' + esc(p.batch) + '</td><td class="wrap muted">' + esc(p.note) + '</td>' +
+      '<td><button class="btn sm danger" onclick="delPay(' + p.row + ',\'' + esc(p.who) + '\',' + p.amount + ')">刪</button></td></tr>';
+  });
+  $('p-table').innerHTML = h;
+}
+function addPay() {
+  var p = { date: $('p-date').value, who: $('p-who').value, amount: $('p-amt').value, method: $('p-method').value, batch: $('p-batch').value, note: $('p-note').value };
+  run('addPayment', [p], '已登記').then(function () { $('p-amt').value = ''; $('p-note').value = ''; return load(); }).catch(function () {});
+}
+function delPay(row, who, amount) {
+  if (!confirm('刪除這筆付款？\n' + who + ' ' + fmt(amount, 0))) return;
+  run('deletePayment', [{ row: row, who: who, amount: amount }], '已刪除').then(load).catch(function () {});
+}
+
+/* ---------- 多選 / 批次指派 ---------- */
+function toggleSel(id, on) { if (on) SEL[id] = 1; else delete SEL[id]; renderBulk(); }
+function selAll(on) { visibleIds.forEach(function (id) { if (on) SEL[id] = 1; else delete SEL[id]; }); renderOrders(); }
+function renderBulk() { var n = Object.keys(SEL).length; $('bulk').classList.toggle('hide', !n); $('bulk-n').textContent = n; }
+function clearSel() { SEL = {}; renderOrders(); }
+function bulkApply() {
+  var ids = Object.keys(SEL), b = $('bulk-batch').value, st = $('bulk-status').value;
+  if (b === '__keep' && !st) { toast('請選擇要指派的批次或狀態', true); return; }
+  var batch = b === '__keep' ? null : (b === '__none' ? '' : b);
+  if (batch) {
+    var miss = D.orders.filter(function (o) { return SEL[o.id] && noW(o); }).length;
+    if (miss && !confirm('其中 ' + miss + ' 筆還沒填重量，運費會暫時全由有填重量的品項分攤。仍要套用？\n（之後可用「補重量」補上）')) return;
+  }
+  run('bulkAssign', [ids, batch, st], '已更新').then(function () { SEL = {}; return load(); }).catch(function () {});
+}
+
+/* ---------- 出貨資訊（品名、運單、項數與總重、收件資料） ---------- */
+function openShipInfo() {
+  SHIPIDS = null;
+  if (!Object.keys(SEL).length) { toast('請先勾選品項', true); return; }
+  if (!$('sh-addr').value) $('sh-addr').value = D.batches.length ? D.batches[D.batches.length - 1].addr : '';
+  buildShip(); openM('m-ship');
+}
+function buildShip() {
+  var ids = SHIPIDS || Object.keys(SEL);
+  var rows = D.orders.filter(function (o) { return ids.indexOf(o.id) >= 0; }).sort(function (a, b) { return a.row - b.row; });
+  var names = rows.map(function (o) { return o.name; }).join('、');
+  var tr = rows.map(function (o) { return o.track; }).filter(Boolean).join('+');
+  var w = 0, miss = 0; rows.forEach(function (o) { if (noW(o)) miss++; else w += Number(o.weight); });
+  $('sh-out').value = names + '\n' + tr + '\n共有' + rows.length + '項，總重為' + r2(w) + 'KG' + (miss ? '（另有' + miss + '筆未填重量）' : '') + '\n\n' + $('sh-addr').value.trim();
+}
+function copyShip() {
+  var t = $('sh-out'); t.select();
+  try { document.execCommand('copy'); toast('已複製'); } catch (e) { toast('請手動全選複製', true); }
+}
+
+/* ---------- 補重量 ---------- */
+var WTMP = {};
+function openWeights() {
+  WTMP = {};
+  $('w-batch').innerHTML = '<option value="">（全部）</option><option value="__none">（未歸批次）</option>' + D.batches.slice().reverse().map(function (b) { return '<option>' + esc(b.name) + '</option>'; }).join('');
+  var cur = $('f-batch').value; if (cur) $('w-batch').value = cur;
+  $('w-only').checked = true; renderWeights(); openM('m-weights');
+}
+function wRows() {
+  var bt = $('w-batch').value, only = $('w-only').checked;
+  return D.orders.filter(function (o) {
+    if (bt === '__none' ? o.batch !== '' : (bt && o.batch !== bt)) return false;
+    if (only && !noW(o)) return false;
+    return true;
+  }).sort(function (a, b) { return a.date < b.date ? 1 : a.date > b.date ? -1 : b.row - a.row; });
+}
+function renderWeights() {
+  var h = '<tr><th>日期</th><th>品名</th><th>WHO</th><th>批次</th><th class="n">重量 kg</th></tr>';
+  wRows().forEach(function (o) {
+    var v = WTMP.hasOwnProperty(o.id) ? WTMP[o.id] : o.weight;
+    h += '<tr><td>' + esc(o.date) + '</td><td class="wrap">' + esc(o.name) + '</td><td>' + esc(o.who) + '</td><td>' + esc(o.batch) + '</td>' +
+      '<td class="n"><input type="number" step="0.01" style="width:90px" value="' + esc(v) + '" oninput="WTMP[\'' + esc(o.id) + '\']=this.value;updWSum()"></td></tr>';
+  });
+  $('w-table').innerHTML = h; updWSum();
+}
+function updWSum() {
+  var bt = $('w-batch').value, b = D.batches.filter(function (x) { return x.name === bt; })[0];
+  if (!b) { $('w-sum').textContent = ''; return; }
+  var sum = 0, miss = 0;
+  D.orders.forEach(function (o) {
+    if (o.batch !== bt) return;
+    var w = WTMP.hasOwnProperty(o.id) ? parseFloat(WTMP[o.id]) : Number(o.weight);
+    if (w > 0) sum += w; else miss++;
+  });
+  $('w-sum').innerHTML = '批次計費 ' + fmt(b.kg, 2) + ' kg；已填合計 ' + fmt(sum, 2) + ' kg；差 <b>' + fmt(r2(b.kg - sum), 2) + '</b> kg' + (miss ? '；仍有 ' + miss + ' 筆未填' : '');
+}
+function saveWeights() {
+  var list = [];
+  Object.keys(WTMP).forEach(function (id) {
+    var o = D.orders.filter(function (x) { return x.id === id; })[0];
+    if (o && String(WTMP[id]) !== String(o.weight)) list.push({ id: id, weight: WTMP[id] });
+  });
+  if (!list.length) { closeM('m-weights'); return; }
+  run('setWeights', [list], '已更新 ' + list.length + ' 筆重量').then(function () { closeM('m-weights'); return load(); }).catch(function () {});
+}
+
+/* ---------- 拆單（同一筆淘寶訂單，多人分攤）---------- */
+var SP = null;
+function openSplit(id) {
+  var o = D.orders.filter(function (x) { return x.id === id; })[0];
+  SP = { id: id, cny: Number(o.cny) || 0, parts: [{ who: o.who, cny: o.cny, weight: o.weight }, { who: '', cny: '', weight: '' }] };
+  $('sp-title').textContent = '拆單：' + o.name;
+  $('sp-info').textContent = '原訂單 ¥' + fmt(o.cny) + '。拆開後每份各自一列，運單／淘寶訂單號／批次／狀態沿用，金額合計必須等於原金額。';
+  renderSplit(); openM('m-split');
+}
+function renderSplit() {
+  var h = '<tr><th>WHO</th><th class="n">¥</th><th class="n">kg（可空）</th><th></th></tr>';
+  SP.parts.forEach(function (p, i) {
+    h += '<tr><td><select onchange="SP.parts[' + i + '].who=this.value">' + opts(D.settings.people, '（選擇）', p.who) + '</select></td>' +
+      '<td class="n"><input type="number" step="0.01" style="width:100px" value="' + esc(p.cny) + '" oninput="SP.parts[' + i + '].cny=this.value;spSum()"></td>' +
+      '<td class="n"><input type="number" step="0.01" style="width:80px" value="' + esc(p.weight) + '" oninput="SP.parts[' + i + '].weight=this.value"></td>' +
+      '<td>' + (SP.parts.length > 2 ? '<button class="btn sm danger" onclick="spDel(' + i + ')">✕</button>' : '') + '</td></tr>';
+  });
+  $('sp-table').innerHTML = h; spSum();
+}
+function spAdd() { SP.parts.push({ who: '', cny: '', weight: '' }); renderSplit(); }
+function spDel(i) { SP.parts.splice(i, 1); renderSplit(); }
+function spSum() {
+  var s = 0; SP.parts.forEach(function (p) { s += parseFloat(p.cny) || 0; });
+  var ok = Math.abs(s - SP.cny) < 0.011;
+  $('sp-sum').innerHTML = '合計 ¥' + fmt(s) + ' / 原 ¥' + fmt(SP.cny) + (ok ? ' <span class="ok">✔</span>' : ' <span class="bad">差 ' + fmt(r2(SP.cny - s)) + '</span>');
+}
+function saveSplit() {
+  run('splitOrder', [SP.id, SP.parts], '已拆單').then(function () { closeM('m-split'); return load(); }).catch(function () {});
+}
+
+/* ---------- 設定 ---------- */
+function lines(id) { return $(id).value.split('\n').map(function (x) { return x.trim(); }).filter(Boolean); }
+function saveSet() {
+  var st = { fee: $('s-fee').value, card: $('s-card').value, reward: $('s-reward').value, payer: $('s-payer').value, rateType: $('s-rtype').value,
+    people: lines('s-people'), statuses: lines('s-statuses'), methods: lines('s-methods') };
+  if (st.people.indexOf(st.payer) < 0) { toast('代墊人必須在人員清單內', true); return; }
+  if ([st.fee, st.card, st.reward].some(function (x) { return x === '' || isNaN(x); })) { toast('費率請填數字', true); return; }
+  run('saveSettings', [st], '設定已儲存').then(load).catch(function () {});
+}
+
+document.addEventListener('keydown', function (e) { if (e.key === 'Escape') { closeM('m-order'); closeM('m-batch'); } });
+
+/* ---------- 登入 ---------- */
+function showLogin(msg) {
+  TOKEN = ''; try { sessionStorage.removeItem('tk'); } catch (e) {}
+  $('lg-err').textContent = msg || ''; $('lg-pw').value = ''; $('login').classList.add('on'); $('lg-pw').focus();
+}
+function doLogin() {
+  var pw = $('lg-pw').value; if (!pw) return;
+  $('lg-btn').disabled = true; busy(true);
+  google.script.run.withSuccessHandler(function (t) {
+    busy(false); $('lg-btn').disabled = false; TOKEN = t;
+    try { sessionStorage.setItem('tk', t); } catch (e) {}
+    $('login').classList.remove('on'); load();
+  }).withFailureHandler(function (e) {
+    busy(false); $('lg-btn').disabled = false; $('lg-pw').value = '';
+    $('lg-err').textContent = (e && e.message ? e.message : String(e)).replace(/^Error:\s*/, '');
+  }).login(pw);
+}
+(function () {
+  var t = ''; try { t = sessionStorage.getItem('tk') || ''; } catch (e) {}
+  if (t) { TOKEN = t; $('login').classList.remove('on'); load(); } else { $('lg-pw').focus(); }
+})();
+</script>
+</body>
+</html>
