@@ -197,7 +197,7 @@
     <label>WHO<select id="o-who" onchange="whoChange()"></select>
       <span id="o-newwho" class="hide" style="display:flex;gap:6px"><input id="o-newwho-in" placeholder="新人員名稱"><button type="button" class="btn sm" onclick="addPersonInline()">加入</button></span></label>
     <label class="full">品名<input id="o-name"></label>
-    <label>商品金額 ¥（含運）<input type="number" id="o-cny" step="0.01" oninput="calcOrder()"></label>
+    <label>商品金額 ¥（含運；對方自己下標、只幫忙集運的可留空）<input type="number" id="o-cny" step="0.01" oninput="calcOrder()"></label>
     <label>匯率 <span id="o-rate-note"></span>
       <span style="display:flex;gap:6px"><input type="number" id="o-rate" step="0.001" oninput="rateManual('o');calcOrder()"><button type="button" class="btn sm" onclick="fetchRate('o')">取匯率</button></span></label>
     <label>重量 kg（集運後才知道，可先空白）<input type="number" id="o-weight" step="0.01"></label>
@@ -347,12 +347,10 @@ $('nav').addEventListener('click', function (e) {
 
 /* ---------- 訂單 ---------- */
 function noW(o) { return !(Number(o.weight) > 0); }
-function missing(o) {      // 資料不完整的訂單不能勾選（品名、WHO、金額、匯率、運單、重量都要有）
+function missing(o) {      // 資料不完整的訂單不能勾選（品名、WHO、運單、重量要有；金額可空，對方自己下標的只分攤集運費）
   var m = [];
   if (!String(o.name).trim()) m.push('品名');
   if (!o.who) m.push('WHO');
-  if (!(Number(o.cny) > 0)) m.push('金額');
-  if (!(Number(o.rate) > 0)) m.push('匯率');
   if (!String(o.track).trim()) m.push('運單');
   if (noW(o)) m.push('重量');
   return m;
