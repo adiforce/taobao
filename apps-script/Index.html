@@ -88,6 +88,7 @@
         <select id="f-batch" onchange="renderOrders()"></select>
         <label><input type="checkbox" id="f-dup" onchange="renderOrders()"> 只看重複運單</label>
         <label><input type="checkbox" id="f-nw" onchange="renderOrders()"> 只看未填重量</label>
+        <label><input type="checkbox" id="f-inc" onchange="renderOrders()"> 只看資料不完整</label>
         <span style="flex:1"></span>
         <button class="btn" onclick="openWeights()">⚖ 補重量</button>
         <button class="btn pri" onclick="openOrder()">＋ 新增訂單</button>
@@ -319,10 +320,21 @@ $('nav').addEventListener('click', function (e) {
 
 /* ---------- 訂單 ---------- */
 function noW(o) { return !(Number(o.weight) > 0); }
+function missing(o) {      // 資料不完整的訂單不能勾選（品名、WHO、金額、匯率、運單、重量都要有）
+  var m = [];
+  if (!String(o.name).trim()) m.push('品名');
+  if (!o.who) m.push('WHO');
+  if (!(Number(o.cny) > 0)) m.push('金額');
+  if (!(Number(o.rate) > 0)) m.push('匯率');
+  if (!String(o.track).trim()) m.push('運單');
+  if (noW(o)) m.push('重量');
+  return m;
+}
 var SEL = {}, visibleIds = [];
 function renderOrders() {
   if (!D) return;
   var q = $('f-q').value.trim().toLowerCase(), st = $('f-status').value, who = $('f-who').value, bt = $('f-batch').value, dup = $('f-dup').checked, nw = $('f-nw').checked;
+  Object.keys(SEL).forEach(function (id) { var o = D.orders.filter(function (x) { return x.id === id; })[0]; if (!o || missing(o).length) delete SEL[id]; });
   var pend = D.orders.filter(function (o) { return o.batch === ''; }), pk = 0, pn = 0;
   pend.forEach(function (o) { if (noW(o)) pn++; else pk += Number(o.weight); });
   $('o-pending').innerHTML = '📦 待集運（未歸批次）：<b>' + pend.length + '</b> 筆，已知重量 <b>' + fmt(pk, 1) + '</b> kg' + (pn ? '，<span class="warn">' + pn + ' 筆還沒填重量</span>' : '');
@@ -332,17 +344,19 @@ function renderOrders() {
     if (bt === '__none' ? o.batch !== '' : (bt && o.batch !== bt)) return false;
     if (dup && !o.dup) return false;
     if (nw && !noW(o)) return false;
+    if ($('f-inc').checked && !missing(o).length) return false;
     if (q && (o.name + ' ' + o.track + ' ' + o.tb + ' ' + o.note + ' ' + o.id).toLowerCase().indexOf(q) < 0) return false;
     return true;
   }).sort(function (a, b) { return a.date < b.date ? 1 : a.date > b.date ? -1 : b.row - a.row; });
-  visibleIds = rows.map(function (o) { return o.id; });
+  visibleIds = rows.filter(function (o) { return !missing(o).length; }).map(function (o) { return o.id; });
   var sum = 0, cny = 0; rows.forEach(function (o) { sum += Number(o.total) || Number(o.twd) || 0; cny += Number(o.cny) || 0; });
   $('o-sum').textContent = rows.length + ' 筆　商品 ¥' + fmt(cny) + '　台幣合計 ' + fmt(sum) + '（已歸批次者含運費）';
   var h = '<tr><th><input type="checkbox" onchange="selAll(this.checked)" title="全選目前列表"></th><th>日期</th><th>品名</th><th>運單 / 淘寶訂單號</th><th class="n">kg</th><th>WHO</th><th class="n">¥ / 匯率</th><th class="n">商品台幣</th><th class="n">運費分攤</th><th class="n">總額</th><th>批次</th><th>狀態</th><th>備註</th><th></th></tr>';
   rows.forEach(function (o) {
     var lk = linkOf(o.batch), idq = '\'' + esc(o.id) + '\'';
-    h += '<tr><td><input type="checkbox"' + (SEL[o.id] ? ' checked' : '') + ' onchange="toggleSel(' + idq + ', this.checked)"></td>' +
-      '<td>' + esc(String(o.date).slice(2)) + '</td><td class="wrap">' + esc(o.name) + '</td>' +
+    var miss = missing(o);
+    h += '<tr><td>' + (miss.length ? '<input type="checkbox" disabled title="缺：' + esc(miss.join('、')) + '，補齊後才能勾選">' : '<input type="checkbox"' + (SEL[o.id] ? ' checked' : '') + ' onchange="toggleSel(' + idq + ', this.checked)">') + '</td>' +
+      '<td>' + esc(String(o.date).slice(2)) + '</td><td class="wrap">' + esc(o.name) + (miss.length ? '<div class="bad" style="font-size:12px">缺：' + esc(miss.join('、')) + '</div>' : '') + '</td>' +
       '<td class="wrap' + (o.dup ? ' dup' : '') + '" style="word-break:break-all">' + esc(o.track) + (o.dup ? ' ⚠重複' : '') + (o.tb ? '<div class="muted">' + esc(o.tb) + '</div>' : '') + '</td>' +
       '<td class="n">' + (noW(o) ? (o.batch ? '<span class="warn">未填</span>' : '<span class="muted">-</span>') : fmt(o.weight)) + '</td><td>' + esc(o.who) + '</td>' +
       '<td class="n">' + fmt(o.cny) + '<div class="muted">× ' + fmt(o.rate, 3) + '</div></td>' +
