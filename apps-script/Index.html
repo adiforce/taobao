@@ -14,7 +14,7 @@
   nav { display:flex; gap:4px; flex:1; flex-wrap:wrap; }
   nav button { border:0; background:transparent; padding:8px 16px; border-radius:6px; cursor:pointer; font-size:16px; color:var(--sub); }
   nav button.on { background:#fff0e6; color:var(--accent-d); font-weight:600; }
-  main { padding:18px 28px; max-width:none; margin:0 auto; }
+  main { padding:14px 16px; max-width:none; margin:0 auto; }
   .card { background:var(--card); border:1px solid var(--line); border-radius:8px; padding:12px; margin-bottom:14px; }
   .bar { display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-bottom:10px; }
   input, select, textarea { font:inherit; padding:8px 10px; border:1px solid #cfd5dc; border-radius:6px; background:#fff; max-width:100%; }
@@ -26,11 +26,11 @@
   button.danger { color:var(--bad); }
   button.sm { padding:3px 10px; font-size:13px; }
   .tablewrap { overflow:auto; max-height:78vh; border:1px solid var(--line); border-radius:6px; }
-  table { border-collapse:collapse; width:100%; background:#fff; }
-  th, td { padding:9px 12px; border-bottom:1px solid #eef0f2; text-align:left; white-space:nowrap; }
+  table { border-collapse:collapse; width:100%; background:#fff; font-size:14px; }
+  th, td { padding:7px 9px; border-bottom:1px solid #eef0f2; text-align:left; white-space:nowrap; }
   th { position:sticky; top:0; background:#f1f3f5; font-weight:600; z-index:1; }
   td.n, th.n { text-align:right; font-variant-numeric:tabular-nums; }
-  td.wrap { white-space:normal; min-width:160px; }
+  td.wrap { white-space:normal; min-width:120px; }
   tr:hover td { background:#fffaf5; }
   .tag { display:inline-block; padding:1px 7px; border-radius:10px; font-size:12px; background:#e9ecef; }
   .tag.s-已下單 { background:#e7f5ff; color:#1971c2; }
@@ -333,15 +333,16 @@ function renderOrders() {
   visibleIds = rows.map(function (o) { return o.id; });
   var sum = 0, cny = 0; rows.forEach(function (o) { sum += Number(o.total) || Number(o.twd) || 0; cny += Number(o.cny) || 0; });
   $('o-sum').textContent = rows.length + ' 筆　商品 ¥' + fmt(cny) + '　台幣合計 ' + fmt(sum) + '（已歸批次者含運費）';
-  var h = '<tr><th><input type="checkbox" onchange="selAll(this.checked)" title="全選目前列表"></th><th>日期</th><th>品名</th><th>運單</th><th>淘寶訂單號</th><th class="n">kg</th><th>WHO</th><th class="n">¥</th><th class="n">匯率</th><th class="n">商品台幣</th><th class="n">運費占比</th><th class="n">運費分攤</th><th class="n">總額</th><th>批次</th><th>狀態</th><th>備註</th><th></th></tr>';
+  var h = '<tr><th><input type="checkbox" onchange="selAll(this.checked)" title="全選目前列表"></th><th>日期</th><th>品名</th><th>運單 / 淘寶訂單號</th><th class="n">kg</th><th>WHO</th><th class="n">¥ / 匯率</th><th class="n">商品台幣</th><th class="n">運費分攤</th><th class="n">總額</th><th>批次</th><th>狀態</th><th>備註</th><th></th></tr>';
   rows.forEach(function (o) {
     var lk = linkOf(o.batch), idq = '\'' + esc(o.id) + '\'';
     h += '<tr><td><input type="checkbox"' + (SEL[o.id] ? ' checked' : '') + ' onchange="toggleSel(' + idq + ', this.checked)"></td>' +
-      '<td>' + esc(o.date) + '</td><td class="wrap">' + esc(o.name) + '</td><td' + (o.dup ? ' class="dup"' : '') + '>' + esc(o.track) + (o.dup ? ' ⚠重複' : '') + '</td>' +
-      '<td class="muted">' + esc(o.tb) + '</td>' +
-      '<td class="n">' + (noW(o) ? (o.batch ? '<span class="warn">未填</span>' : '<span class="muted">-</span>') : fmt(o.weight)) + '</td><td>' + esc(o.who) + '</td><td class="n">' + fmt(o.cny) + '</td><td class="n">' + fmt(o.rate, 3) + '</td>' +
-      '<td class="n">' + fmt(o.twd) + '</td><td class="n">' + (o.share === '' ? '' : fmt(o.share * 100, 1) + '%') + '</td><td class="n">' + fmt(o.ship) + '</td><td class="n"><b>' + fmt(o.total) + '</b></td>' +
-      '<td>' + (lk ? '<a href="' + esc(lk) + '" target="_blank" rel="noopener">' + esc(o.batch) + ' 📦</a>' : esc(o.batch)) + '</td>' +
+      '<td>' + esc(String(o.date).slice(2)) + '</td><td class="wrap">' + esc(o.name) + '</td>' +
+      '<td class="wrap' + (o.dup ? ' dup' : '') + '" style="word-break:break-all">' + esc(o.track) + (o.dup ? ' ⚠重複' : '') + (o.tb ? '<div class="muted">' + esc(o.tb) + '</div>' : '') + '</td>' +
+      '<td class="n">' + (noW(o) ? (o.batch ? '<span class="warn">未填</span>' : '<span class="muted">-</span>') : fmt(o.weight)) + '</td><td>' + esc(o.who) + '</td>' +
+      '<td class="n">' + fmt(o.cny) + '<div class="muted">× ' + fmt(o.rate, 3) + '</div></td>' +
+      '<td class="n">' + fmt(o.twd) + '</td><td class="n" title="' + (o.share === '' ? '' : '運費占比 ' + fmt(o.share * 100, 1) + '%') + '">' + fmt(o.ship) + '</td><td class="n"><b>' + fmt(o.total) + '</b></td>' +
+      '<td class="wrap">' + (lk ? '<a href="' + esc(lk) + '" target="_blank" rel="noopener">' + esc(o.batch) + ' 📦</a>' : esc(o.batch)) + '</td>' +
       '<td><span class="tag s-' + esc(o.status) + '">' + esc(o.status) + '</span></td><td class="wrap muted">' + esc(o.note) + '</td>' +
       '<td><button class="btn sm" onclick="openOrder(' + idq + ')">編輯</button> <button class="btn sm" onclick="openSplit(' + idq + ')">拆單</button> <button class="btn sm danger" onclick="delOrder(' + idq + ')">刪</button></td></tr>';
   });
@@ -418,16 +419,18 @@ function delOrder(id) {
 
 /* ---------- 批次 ---------- */
 function renderBatches() {
-  var h = '<tr><th>批次</th><th>日期</th><th class="n">計費kg</th><th class="n">¥/kg</th><th class="n">運費¥</th><th class="n">匯率</th><th class="n">運費台幣</th><th class="n">品項數</th><th class="n">未填重量</th><th class="n">品項重量合計</th><th class="n">重量差</th><th class="n">物品台幣</th><th class="n">批次總額</th><th>貨態</th><th>收件地址</th><th>備註</th><th></th></tr>';
+  var h = '<tr><th>批次</th><th>日期</th><th class="n">計費（kg × ¥/kg ＝ 運費¥）</th><th class="n">匯率</th><th class="n">運費台幣</th><th class="n">品項（缺重量）</th><th class="n">重量合計（差）</th><th class="n">物品台幣</th><th class="n">批次總額</th><th>貨態</th><th>收件地址</th><th>備註</th><th></th></tr>';
   D.batches.slice().reverse().forEach(function (b) {
     var bad = typeof b.wdiff === 'number' && Math.abs(b.wdiff) > 2;
     var miss = D.orders.filter(function (o) { return o.batch === b.name && noW(o); }).length;
-    h += '<tr><td><a href="#" data-b="' + esc(b.name) + '" onclick="toggleBatch(this.dataset.b);return false">' + (OPEN[b.name] ? '▼ ' : '▶ ') + esc(b.name) + '</a></td><td>' + esc(b.date) + '</td><td class="n">' + fmt(b.kg) + '</td><td class="n">' + fmt(b.unit) + '</td><td class="n">' + fmt(b.cny) + '</td><td class="n">' + fmt(b.rate, 3) + '</td>' +
-      '<td class="n">' + fmt(b.twd) + '</td><td class="n">' + fmt(b.count, 0) + '</td><td class="n">' + (miss ? '<b class="bad">' + miss + '</b>' : '<span class="muted">0</span>') + '</td><td class="n">' + fmt(b.wsum, 1) + '</td><td class="n' + (bad ? ' warn' : '') + '"' + (bad ? ' style="background:#fff3bf"' : '') + '>' + fmt(b.wdiff, 1) + '</td>' +
+    h += '<tr><td><a href="#" data-b="' + esc(b.name) + '" onclick="toggleBatch(this.dataset.b);return false">' + (OPEN[b.name] ? '▼ ' : '▶ ') + esc(b.name) + '</a></td><td>' + esc(b.date) + '</td>' +
+      '<td class="n">' + fmt(b.kg) + ' × ' + fmt(b.unit) + ' ＝ <b>' + fmt(b.cny) + '</b></td><td class="n">' + fmt(b.rate, 3) + '</td><td class="n">' + fmt(b.twd) + '</td>' +
+      '<td class="n">' + fmt(b.count, 0) + (miss ? ' <b class="bad">(缺' + miss + ')</b>' : '') + '</td>' +
+      '<td class="n">' + fmt(b.wsum, 1) + ' <span' + (bad ? ' class="warn" style="background:#fff3bf;padding:0 4px"' : ' class="muted"') + '>(' + fmt(b.wdiff, 1) + ')</span></td>' +
       '<td class="n">' + fmt(b.itemTwd) + '</td><td class="n"><b>' + fmt(b.total) + '</b></td>' +
       '<td>' + (b.link ? '<a href="' + esc(b.link) + '" target="_blank" rel="noopener">查貨態 📦</a>' : '') + '</td><td class="wrap">' + esc(b.addr) + '</td><td class="wrap muted">' + esc(b.note) + '</td>' +
       '<td><button class="btn sm" onclick="openBatch(\'' + esc(b.name) + '\')">編輯</button> <button class="btn sm danger" onclick="delBatch(\'' + esc(b.name) + '\')">刪</button></td></tr>';
-    if (OPEN[b.name]) h += '<tr><td colspan="17" style="background:#fafbfc;white-space:normal">' + batchDetail(b) + '</td></tr>';
+    if (OPEN[b.name]) h += '<tr><td colspan="13" style="background:#fafbfc;white-space:normal">' + batchDetail(b) + '</td></tr>';
   });
   $('b-table').innerHTML = h;
 }
