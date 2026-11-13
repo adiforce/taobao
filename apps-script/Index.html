@@ -212,6 +212,7 @@
     <label>運單編號<input id="o-track" inputmode="numeric"></label>
     <label>淘寶訂單號<input id="o-tb" inputmode="numeric"></label>
     <label>狀態<select id="o-status"></select></label>
+    <div class="preview hide" id="o-lock"></div>
     <label>備註<input id="o-note"></label>
     <div class="preview" id="o-prev"></div>
   </div>
@@ -365,6 +366,8 @@ $('nav').addEventListener('click', function (e) {
 });
 
 /* ---------- 訂單 ---------- */
+var LOCKED = ['集運回台', '已完成'];
+function isLocked(o) { return LOCKED.indexOf(o.status) >= 0; }
 function noW(o) { return !(Number(o.weight) > 0); }
 function missing(o) {      // 資料不完整的訂單不能勾選（品名、WHO、運單、重量要有；金額可空，對方自己下標的只分攤集運費）
   var m = [];
@@ -406,7 +409,7 @@ function renderOrders() {
       '<td class="n">' + fmt(o.cny) + '<div class="muted">× ' + fmt(o.rate, 3) + '</div></td>' +
       '<td class="n">' + fmt(o.twd) + '</td><td class="n" title="' + (o.share === '' ? '' : '運費權重 ' + fmt(o.share, 5)) + '">' + fmt(o.ship) + '</td><td class="n"><b>' + fmt(o.total) + '</b></td>' +
       '<td class="wrap">' + (lk ? '<a href="' + esc(lk) + '" target="_blank" rel="noopener">' + esc(o.batch) + ' 📦</a>' : esc(o.batch)) + '</td>' +
-      '<td><span class="tag s-' + esc(o.status) + '">' + esc(o.status) + '</span></td><td class="wrap muted">' + esc(o.note) + '</td>' +
+      '<td><span class="tag s-' + esc(o.status) + '">' + esc(o.status) + '</span>' + (isLocked(o) ? ' <span title="已鎖定：要改請先刪除整張集運單">🔒</span>' : '') + '</td><td class="wrap muted">' + esc(o.note) + '</td>' +
       '<td><button class="btn sm" onclick="openOrder(' + idq + ')">編輯</button> <button class="btn sm" onclick="openSplit(' + idq + ')">拆單</button> <button class="btn sm danger" onclick="delOrder(' + idq + ')">刪</button></td></tr>';
   });
   $('o-table').innerHTML = h;
@@ -424,6 +427,9 @@ function openOrder(id) {
   $('o-newwho').classList.add('hide'); $('o-newwho-in').value = '';
   $('o-batch').innerHTML = opts(D.batches.map(function (b) { return b.name; }), '（待集運）', o ? o.batch : '');
   $('o-status').innerHTML = opts(s.statuses, null, o ? o.status : s.statuses[0]);
+  var lk = !!(o && isLocked(o));
+  $('o-status').disabled = lk; $('o-batch').disabled = lk; $('o-lock').classList.toggle('hide', !lk);
+  if (lk) $('o-lock').textContent = '🔒 這筆已是「' + o.status + '」，不能改狀態和集運單。要改請先到「集運單」分頁刪除整張集運單，它會回到「在集運倉」。';
   $('o-date').value = o ? o.date : (editOrderKeep.date || today());
   $('o-name').value = o ? o.name : '';
   $('o-cny').value = o ? o.cny : '';
@@ -614,7 +620,7 @@ function saveBatch() {
 }
 function delBatch(name) {
   var cnt = D.orders.filter(function (o) { return o.batch === name; }).length;
-  if (!confirm('刪除集運單「' + name + '」？' + (cnt ? '\n\n底下 ' + cnt + ' 筆訂單會放回「未集運」，狀態是「集運回台」的會還原成「在集運倉」。' : '') + '\n（已登記的付款紀錄不會動）')) return;
+  if (!confirm('刪除集運單「' + name + '」？' + (cnt ? '\n\n底下 ' + cnt + ' 筆訂單會放回「未集運」，狀態是「集運回台」「已完成」的會還原成「在集運倉」。' : '') + '\n（已登記的付款紀錄不會動）')) return;
   run('deleteBatch', [name], '已刪除').then(load).catch(function () {});
 }
 
@@ -673,6 +679,8 @@ function bulkApply() {
   var ids = Object.keys(SEL), b = $('bulk-batch').value, st = $('bulk-status').value;
   if (b === '__keep' && !st) { toast('請選擇要指派的集運單或狀態', true); return; }
   var batch = b === '__keep' ? null : (b === '__none' ? '' : b);
+  var lockedSel = D.orders.filter(function (o) { return SEL[o.id] && isLocked(o) && ((batch !== null && batch !== o.batch) || (st && st !== o.status)); });
+  if (lockedSel.length) { toast('這些訂單已鎖定，不能改：' + lockedSel.slice(0, 3).map(function (o) { return o.name + '（' + o.status + '）'; }).join('、') + (lockedSel.length > 3 ? ' …' : '') + '。要改請先刪除整張集運單', true); return; }
   if (batch) {
     var miss = D.orders.filter(function (o) { return SEL[o.id] && noW(o); }).length;
     if (miss && !confirm('其中 ' + miss + ' 筆還沒填重量，運費會暫時全由有填重量的品項分攤。仍要套用？\n（之後可用「補重量」補上）')) return;
