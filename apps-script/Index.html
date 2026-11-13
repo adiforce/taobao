@@ -119,7 +119,7 @@
         <button class="btn pri" onclick="openOrder()">＋ 新增訂單</button>
       </div>
       <div id="o-pending" style="margin-bottom:8px"></div>
-      <div class="bar hide" id="bulk" style="background:#fff8f0;padding:6px 8px;border-radius:6px">已選 <b id="bulk-n">0</b> 筆　<button class="btn pri" onclick="openBatchFromSel()">📦 建立集運批次</button><select id="bulk-batch"></select><select id="bulk-status"></select><button class="btn pri" onclick="bulkApply()">套用</button><button class="btn" onclick="openShipInfo()">📋 出貨資訊</button><button class="btn" onclick="clearSel()">取消選取</button></div>
+      <div class="bar hide" id="bulk" style="background:#fff8f0;padding:6px 8px;border-radius:6px">已選 <b id="bulk-n">0</b> 筆　<button class="btn pri" onclick="openBatchFromSel()">📦 建立集運批次</button><select id="bulk-batch"></select><select id="bulk-status"></select><button class="btn pri" onclick="bulkApply()">套用</button><button class="btn" onclick="clearSel()">取消選取</button></div>
       <div class="muted" id="o-sum" style="margin-bottom:8px"></div>
       <div class="tablewrap"><table id="o-table"></table></div>
     </div>
@@ -474,7 +474,7 @@ function renderBatches() {
       '<td class="n">' + fmt(b.wsum, 1) + ' <span' + (bad ? ' class="warn" style="background:#fff3bf;padding:0 4px"' : ' class="muted"') + '>(' + fmt(b.wdiff, 1) + ')</span></td>' +
       '<td class="n">' + fmt(b.itemTwd) + '</td><td class="n"><b>' + fmt(b.total) + '</b></td>' +
       '<td>' + (b.link ? (function () { var p = parseLink(b.link); return '<a href="' + esc(b.link) + '" target="_blank" rel="noopener">查貨態 📦</a>' + (p.car ? '<div class="muted" style="font-size:12px">' + esc(p.car) + ' ' + esc(p.num) + '</div>' : ''); })() : '') + '</td><td class="wrap">' + esc(b.rcp) + (b.rcp && b.addr ? '<br>' : '') + esc(b.addr) + '</td><td class="wrap muted">' + esc(b.note) + '</td>' +
-      '<td><button class="btn sm" onclick="openBatch(\'' + esc(b.name) + '\')">編輯</button> <button class="btn sm danger" onclick="delBatch(\'' + esc(b.name) + '\')">刪</button></td></tr>';
+      '<td><button class="btn sm" data-b="' + esc(b.name) + '" onclick="batchShip(this.dataset.b)">📋 出貨資訊</button> <button class="btn sm" onclick="openBatch(\'' + esc(b.name) + '\')">編輯</button> <button class="btn sm danger" onclick="delBatch(\'' + esc(b.name) + '\')">刪</button></td></tr>';
     if (OPEN[b.name]) h += '<tr><td colspan="13" style="background:#fafbfc;white-space:normal">' + batchDetail(b) + '</td></tr>';
   });
   $('b-table').innerHTML = h;
@@ -583,9 +583,11 @@ function saveBatch() {
   var link = buildLink();
   var b = { oldName: editBatch, name: $('b-name').value, date: $('b-date').value, kg: $('b-kg').value, unit: $('b-unit').value,
     cny: $('b-cny').value, rate: $('b-rate').value, link: link, addr: $('b-addr').value, rcp: $('b-rcp').value, note: $('b-note').value };
+  var newBatch = '';
   run(editBatch ? 'updateBatch' : 'addBatch', [b], editBatch ? '已儲存' : '').then(function (name) {
+    if (!editBatch && BATCH_SEL) newBatch = name;
     if (BATCH_SEL && !editBatch) return run('bulkAssign', [BATCH_SEL, name, $('b-st').value], '已建立批次，並歸入 ' + BATCH_SEL.length + ' 筆訂單').then(function () { SEL = {}; });
-  }).then(function () { closeM('m-batch'); return load(); }).catch(function () {});
+  }).then(function () { closeM('m-batch'); return load(); }).then(function () { if (newBatch) batchShip(newBatch); }).catch(function () {});
 }
 function delBatch(name) {
   if (!confirm('刪除批次「' + name + '」？')) return;
