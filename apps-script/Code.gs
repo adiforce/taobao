@@ -232,15 +232,20 @@ function renameRefs_(key, col, from, to) {
   if (hit) r.setValues(v);
 }
 
-function deleteBatch_(name) {
+function deleteBatch_(name) {      // 刪批次：底下訂單放回未歸批次，「集運回台」的狀態還原成「在集運倉」
   return withLock_(function () {
-    var o = sh_('orders'), last = lastRow_(o), used = 0;
-    if (last >= 2) o.getRange(2, 9, last - 1, 1).getValues().forEach(function (r) { if (String(r[0]) === name) used++; });
-    if (used) throw new Error('此批次還有 ' + used + ' 筆訂單，請先把訂單改到別的批次或清空批次欄');
     var s = sh_('batches'), row = findRow_(s, 1, name);
     if (row < 0) throw new Error('找不到批次 ' + name);
+    var o = sh_('orders'), last = lastRow_(o), freed = 0;
+    if (last >= 2) {
+      var rng = o.getRange(2, 9, last - 1, 2), v = rng.getValues();            // I 批次、J 狀態
+      v.forEach(function (r) {
+        if (String(r[0]) === name) { r[0] = ''; if (String(r[1]) === '集運回台') r[1] = '在集運倉'; freed++; }
+      });
+      if (freed) rng.setValues(v);
+    }
     s.deleteRow(row);
-    return true;
+    return freed;
   });
 }
 

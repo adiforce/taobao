@@ -606,7 +606,8 @@ function saveBatch() {
   }).then(function () { closeM('m-batch'); return load(); }).then(function () { if (newBatch) batchShip(newBatch); }).catch(function () {});
 }
 function delBatch(name) {
-  if (!confirm('刪除批次「' + name + '」？')) return;
+  var cnt = D.orders.filter(function (o) { return o.batch === name; }).length;
+  if (!confirm('刪除批次「' + name + '」？' + (cnt ? '\n\n底下 ' + cnt + ' 筆訂單會放回「未歸批次」，狀態是「集運回台」的會還原成「在集運倉」。' : '') + '\n（已登記的付款紀錄不會動）')) return;
   run('deleteBatch', [name], '已刪除').then(load).catch(function () {});
 }
 
