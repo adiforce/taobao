@@ -60,7 +60,32 @@
   .hide { display:none !important; }
   textarea.list { height:120px; }
   a { color:#1971c2; text-decoration:none; } a:hover { text-decoration:underline; }
-  @media (max-width:600px) { .form { grid-template-columns:1fr; } }
+  @media (max-width:760px) {
+    body { font-size:15px; }
+    header { padding:6px 10px; gap:6px; }
+    header h1 { font-size:16px; }
+    nav button { padding:8px 10px; font-size:15px; }
+    main { padding:8px; }
+    .card { padding:8px; }
+    .form { grid-template-columns:1fr; }
+    .modal-bg { padding:8px 6px; }
+    .modal { padding:14px; }
+    .bar input, .bar select { flex:1 1 130px; min-width:0; }
+    button.btn, button.sm { padding:8px 12px; font-size:14px; }
+    input[type=checkbox] { width:22px; height:22px; }
+    .tablewrap { max-height:none; overflow:visible; border:0; }
+    table, tbody { display:block; width:100%; background:transparent; }
+    tr.hr { display:none; }
+    tr.dr { display:block; background:#fff; border:1px solid var(--line); border-radius:8px; padding:6px 8px; margin:0 0 10px; }
+    td { display:flex; justify-content:space-between; align-items:center; gap:12px; white-space:normal; text-align:right; border:0; padding:4px 2px; min-width:0; }
+    td::before { content:attr(data-label); flex:0 0 auto; text-align:left; color:var(--sub); font-size:12px; }
+    td[data-label=""]::before, td[colspan]::before { display:none; }
+    td[colspan] { display:block; text-align:left; }
+    td.wrap { min-width:0; }
+    td.n { text-align:right; }
+    td[data-label=""] { justify-content:flex-start; }
+    tr:hover td { background:transparent; }
+  }
 </style>
 </head>
 <body>
@@ -750,6 +775,29 @@ function doLogin() {
 (function () {
   var t = ''; try { t = sessionStorage.getItem('tk') || ''; } catch (e) {}
   if (t) { TOKEN = t; $('login').classList.remove('on'); load(); } else { $('lg-pw').focus(); }
+})();
+
+/* ---------- 手機版：表格每列變卡片（把表頭文字貼到每個格子上） ---------- */
+function labelize(root) {
+  var ts = root.tagName === 'TABLE' ? [root] : [].slice.call(root.querySelectorAll('table'));
+  ts.forEach(function (t) {
+    var rows = [].slice.call(t.rows), heads = null;
+    rows.forEach(function (r) {
+      var ths = [].slice.call(r.children).filter(function (c) { return c.tagName === 'TH'; });
+      if (ths.length && ths.length === r.children.length) { heads = ths.map(function (x) { return x.textContent.replace(/（.*?）/g, '').trim(); }); r.className = 'hr'; return; }
+      r.className = 'dr';
+      if (!heads) return;
+      var tds = [].slice.call(r.children);
+      if (tds.length !== heads.length) return;
+      tds.forEach(function (td, i) { td.setAttribute('data-label', heads[i]); });
+    });
+  });
+}
+(function () {
+  if (typeof MutationObserver === 'undefined') return;
+  var mo = new MutationObserver(function (muts) { muts.forEach(function (m) { if (m.target.nodeType === 1) labelize(m.target.tagName === 'TABLE' ? m.target : (m.target.closest ? (m.target.closest('table') || m.target) : m.target)); }); });
+  mo.observe(document.body, { childList: true, subtree: true });
+  [].forEach.call(document.querySelectorAll('table'), labelize);
 })();
 </script>
 </body>
