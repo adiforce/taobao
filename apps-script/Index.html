@@ -64,6 +64,9 @@
   #loading { position:fixed; top:0; left:0; right:0; height:3px; background:var(--accent); display:none; z-index:100; animation:ld 1s infinite; }
   @keyframes ld { 0%{transform:scaleX(0);transform-origin:left} 50%{transform:scaleX(1);transform-origin:left} 51%{transform-origin:right} 100%{transform:scaleX(0);transform-origin:right} }
   .hide { display:none !important; }
+  body.guest .gx, body.guest #nav button:not([data-t=orders]) { display:none !important; }
+  #gst { display:none; background:#e7f5ff; color:#1971c2; padding:3px 10px; border-radius:12px; font-size:13px; }
+  body.guest #gst { display:inline-block; }
   textarea.list { height:120px; }
   a { color:#1971c2; text-decoration:none; } a:hover { text-decoration:underline; }
   @media (max-width:760px) {
@@ -101,12 +104,14 @@
   <h1>🛒 淘寶代購管理</h1>
   <nav id="nav">
     <button data-t="orders" class="on">訂單</button>
-    <button data-t="batches">運費批次</button>
+    <button data-t="batches">集運單</button>
     <button data-t="settle">結算</button>
     <button data-t="pay">付款紀錄</button>
     <button data-t="set">設定</button>
   </nav>
+  <span id="gst">👀 訪客模式（只能看訂單）</span>
   <button class="btn" onclick="load()">↻ 重新整理</button>
+  <button class="btn gx2" id="out-btn" onclick="showLogin()" style="display:none">登出</button>
 </header>
 
 <main>
@@ -119,24 +124,24 @@
         <select id="f-who" onchange="renderOrders()"></select>
         <select id="f-batch" onchange="renderOrders()"></select>
         <label><input type="checkbox" id="f-dup" onchange="renderOrders()"> 只看重複運單</label>
-        <label><input type="checkbox" id="f-nw" onchange="renderOrders()"> 只看未填重量</label>
-        <label><input type="checkbox" id="f-inc" onchange="renderOrders()"> 只看資料不完整</label>
+        <label class="gx"><input type="checkbox" id="f-nw" onchange="renderOrders()"> 只看未填重量</label>
+        <label class="gx"><input type="checkbox" id="f-inc" onchange="renderOrders()"> 只看資料不完整</label>
         <span style="flex:1"></span>
-        <button class="btn" onclick="openWeights()">⚖ 補重量</button>
-        <button class="btn pri" onclick="openOrder()">＋ 新增訂單</button>
+        <button class="btn gx" onclick="openWeights()">⚖ 補重量</button>
+        <button class="btn pri gx" onclick="openOrder()">＋ 新增訂單</button>
       </div>
       <div id="o-pending" style="margin-bottom:8px"></div>
-      <div class="bar hide" id="bulk" style="background:#fff8f0;padding:6px 8px;border-radius:6px">已選 <b id="bulk-n">0</b> 筆　<button class="btn pri" onclick="openBatchFromSel()">📦 建立集運批次</button><select id="bulk-batch"></select><select id="bulk-status"></select><button class="btn pri" onclick="bulkApply()">套用</button><button class="btn" onclick="clearSel()">取消選取</button></div>
-      <div class="muted" id="o-sum" style="margin-bottom:8px"></div>
+      <div class="bar hide gx" id="bulk" style="background:#fff8f0;padding:6px 8px;border-radius:6px">已選 <b id="bulk-n">0</b> 筆　<button class="btn pri" onclick="openBatchFromSel()">📦 建立集運單</button><select id="bulk-batch"></select><select id="bulk-status"></select><button class="btn pri" onclick="bulkApply()">套用</button><button class="btn" onclick="clearSel()">取消選取</button></div>
+      <div class="muted gx" id="o-sum" style="margin-bottom:8px"></div>
       <div class="tablewrap"><table id="o-table"></table></div>
     </div>
   </section>
 
-  <!-- 運費批次 -->
+  <!-- 集運單 -->
   <section id="t-batches" class="hide">
     <div class="card">
-      <div class="bar"><b>集運批次</b><span class="muted">（重量差超過 ±2kg 會標橘色，通常是漏填或填錯品項重量）</span><span style="flex:1"></span>
-        <button class="btn pri" onclick="openBatch()">＋ 新增批次</button></div>
+      <div class="bar"><b>集運單</b><span class="muted">（重量差超過 ±2kg 會標橘色，通常是漏填或填錯品項重量）</span><span style="flex:1"></span>
+        <button class="btn pri" onclick="openBatch()">＋ 新增集運單</button></div>
       <div class="tablewrap"><table id="b-table"></table></div>
     </div>
   </section>
@@ -144,11 +149,11 @@
   <!-- 結算 -->
   <section id="t-settle" class="hide">
     <div class="card"><b>各人應付</b>
-      <div class="muted" style="margin:4px 0 8px">應付只計入「已歸批次」的訂單（運費已分攤）；尚未歸批次的商品列在「待出貨」，運費還沒算進去。</div>
+      <div class="muted" style="margin:4px 0 8px">應付只計入「已集運」的訂單（運費已分攤）；尚未集運的商品列在「待出貨」，運費還沒算進去。</div>
       <div class="tablewrap"><table id="s-table"></table></div>
       <div id="s-check" style="margin-top:8px"></div>
     </div>
-    <div class="card"><b>批次 × 人員分攤（台幣）</b>
+    <div class="card"><b>集運單 × 人員分攤（台幣）</b>
       <div class="tablewrap" style="margin-top:8px"><table id="m-table"></table></div>
     </div>
   </section>
@@ -208,7 +213,7 @@
     <label><a href="https://rate.bot.com.tw/xrt/quote/ltm/CNY" target="_blank" rel="noopener" title="開啟臺灣銀行人民幣牌告匯率">匯率 🔗</a> <span id="o-rate-note"></span>
       <span style="display:flex;gap:6px"><input type="number" id="o-rate" step="0.001" oninput="rateManual('o');calcOrder()"><button type="button" class="btn sm" onclick="fetchRate('o')">取匯率</button></span></label>
     <label>重量 kg（集運後才知道，可先空白）<input type="number" id="o-weight" step="0.01"></label>
-    <label>集運批次（待集運請留空）<select id="o-batch"></select></label>
+    <label>集運單（待集運請留空）<select id="o-batch"></select></label>
     <label>運單編號<input id="o-track" inputmode="numeric"></label>
     <label>淘寶訂單號<input id="o-tb" inputmode="numeric"></label>
     <label>狀態<select id="o-status"></select></label>
@@ -222,12 +227,12 @@
   </div>
 </div></div>
 
-<!-- 批次 modal -->
+<!-- 集運單 modal -->
 <div class="modal-bg" id="m-batch"><div class="modal">
-  <h3 id="mb-title">新增批次</h3>
+  <h3 id="mb-title">新增集運單</h3>
   <div class="form">
     <label>日期<input type="date" id="b-date" onchange="dateChanged('b')"></label>
-    <label>批次名稱（空白＝日期＋公斤）<input id="b-name"></label>
+    <label>集運單名稱（空白＝日期＋公斤）<input id="b-name"></label>
     <label>計費公斤<input type="number" id="b-kg" step="0.01" oninput="autoShip()" onchange="kgBlank()"></label>
     <label>單價 ¥/kg<input type="number" id="b-unit" step="0.01" oninput="autoShip()"></label>
     <label>運費 ¥<input type="number" id="b-cny" step="0.01" oninput="this.dataset.manual=1;calcBatch()"></label>
@@ -296,7 +301,7 @@
   <h3>🛒 淘寶代購管理</h3>
   <div class="form" style="grid-template-columns:1fr"><label>密碼<input type="password" id="lg-pw" autocomplete="off" onkeydown="if(event.key==='Enter')doLogin()"></label></div>
   <div id="lg-err" class="bad" style="margin-top:8px;min-height:18px"></div>
-  <div class="actions"><button class="btn pri" id="lg-btn" onclick="doLogin()">登入</button></div>
+  <div class="actions"><button class="btn" id="lg-guest" onclick="doGuest()">👀 訪客進入（只看訂單）</button><button class="btn pri" id="lg-btn" onclick="doLogin()">登入</button></div>
 </div></div>
 
 <div id="toast"></div>
@@ -318,7 +323,7 @@ function busy(on, block) {
   MASKN += on ? 1 : -1; if (MASKN < 0) MASKN = 0;
   clearTimeout(MASKT);
   if (MASKN > 0) $('mask').classList.add('on');
-  else MASKT = setTimeout(function () { if (MASKN === 0) $('mask').classList.remove('on'); }, 120);   // 連續多步驟（建批次→歸入→重載）之間不閃爍
+  else MASKT = setTimeout(function () { if (MASKN === 0) $('mask').classList.remove('on'); }, 120);   // 連續多步驟（建集運單→歸入→重載）之間不閃爍
 }
 function run(fn, args, okMsg) {
   var blk = fn !== 'getRate';      // 背景查匯率不擋畫面
@@ -349,17 +354,20 @@ function load() {
 }
 function renderAll() {
   var s = D.settings;
+  document.body.classList.toggle('guest', !!D.guest);
+  $('out-btn').style.display = D.guest ? '' : 'none';
+  if (D.guest && curTab !== 'orders') showTab('orders');
   if (!window.__stInit) { window.__stInit = 1; if (s.statuses.indexOf('在集運倉') >= 0) $('f-status').dataset.def = '在集運倉'; }
   var keep = { st: $('f-status').dataset.def || $('f-status').value, who: $('f-who').value, b: $('f-batch').value, pf: $('p-filter').value };
   $('f-status').innerHTML = opts(s.statuses, '所有狀態', keep.st); delete $('f-status').dataset.def;
   $('f-who').innerHTML = opts(s.people, '所有人', keep.who);
-  $('f-batch').innerHTML = '<option value="">所有批次</option><option value="__none">（未歸批次）</option>' + D.batches.map(function (b) { return '<option' + (b.name === keep.b ? ' selected' : '') + '>' + esc(b.name) + '</option>'; }).join('');
+  $('f-batch').innerHTML = '<option value="">所有集運單</option><option value="__none">（未集運）</option>' + D.batches.map(function (b) { return '<option' + (b.name === keep.b ? ' selected' : '') + '>' + esc(b.name) + '</option>'; }).join('');
   if (keep.b === '__none') $('f-batch').value = '__none';
   $('p-who').innerHTML = opts(s.people.filter(function (p) { return p !== s.payer; }));
   $('p-method').innerHTML = opts(s.methods);
-  $('p-batch').innerHTML = opts(D.batches.map(function (b) { return b.name; }), '（對應批次，可空）');
+  $('p-batch').innerHTML = opts(D.batches.map(function (b) { return b.name; }), '（對應集運單，可空）');
   $('p-filter').innerHTML = opts(s.people, '所有人', keep.pf);
-  $('bulk-batch').innerHTML = '<option value="__keep">（批次不變）</option><option value="__none">（清空批次）</option>' + D.batches.slice().reverse().map(function (b) { return '<option>' + esc(b.name) + '</option>'; }).join('');
+  $('bulk-batch').innerHTML = '<option value="__keep">（集運單不變）</option><option value="__none">（清空集運單）</option>' + D.batches.slice().reverse().map(function (b) { return '<option>' + esc(b.name) + '</option>'; }).join('');
   $('bulk-status').innerHTML = opts(s.statuses, '（狀態不變）');
   $('s-rtype').innerHTML = opts(['即期賣出', '即期買入', '現金賣出', '現金買入', '中間價'], null, s.rateType);
   if (!$('p-date').value) $('p-date').value = today();
@@ -405,7 +413,7 @@ function renderOrders() {
   Object.keys(SEL).forEach(function (id) { var o = D.orders.filter(function (x) { return x.id === id; })[0]; if (!o || missing(o).length) delete SEL[id]; });
   var pend = D.orders.filter(function (o) { return o.batch === ''; }), pk = 0, pn = 0;
   pend.forEach(function (o) { if (noW(o)) pn++; else pk += Number(o.weight); });
-  $('o-pending').innerHTML = '📦 待集運（未歸批次）：<b>' + pend.length + '</b> 筆，已知重量 <b>' + fmt(pk, 1) + '</b> kg' + (pn ? '，<span class="warn">' + pn + ' 筆還沒填重量</span>' : '');
+  $('o-pending').innerHTML = '📦 待集運：<b>' + pend.length + '</b> 筆，已知重量 <b>' + fmt(pk, 1) + '</b> kg' + (pn ? '，<span class="warn">' + pn + ' 筆還沒填重量</span>' : '');
   var rows = D.orders.filter(function (o) {
     if (st && o.status !== st) return false;
     if (who && o.who !== who) return false;
@@ -418,8 +426,17 @@ function renderOrders() {
   }).sort(function (a, b) { return a.date < b.date ? 1 : a.date > b.date ? -1 : b.row - a.row; });
   visibleIds = rows.filter(function (o) { return !missing(o).length; }).map(function (o) { return o.id; });
   var sum = 0, cny = 0; rows.forEach(function (o) { sum += Number(o.total) || Number(o.twd) || 0; cny += Number(o.cny) || 0; });
-  $('o-sum').textContent = rows.length + ' 筆　商品 ¥' + fmt(cny) + '　台幣合計 ' + fmt(sum) + '（已歸批次者含運費）';
-  var h = '<tr><th><input type="checkbox" onchange="selAll(this.checked)" title="全選目前列表"></th><th>日期</th><th>品名</th><th>運單 / 淘寶訂單號</th><th class="n">kg</th><th>WHO</th><th class="n">¥ / 匯率</th><th class="n">商品台幣</th><th class="n">運費分攤</th><th class="n">總額</th><th>批次</th><th>狀態</th><th>備註</th><th></th></tr>';
+  $('o-sum').textContent = rows.length + ' 筆　商品 ¥' + fmt(cny) + '　台幣合計 ' + fmt(sum) + '（已集運者含運費）';
+  if (D.guest) {                                    // 訪客：只顯示進度，不含任何金額
+    var g = '<tr><th>日期</th><th>品名</th><th>運單</th><th class="n">kg</th><th>WHO</th><th>集運單</th><th>狀態</th><th>備註</th></tr>';
+    rows.forEach(function (o) {
+      g += '<tr><td>' + esc(String(o.date).slice(2)) + '</td><td class="wrap">' + esc(o.name) + '</td><td class="wrap" style="word-break:break-all">' + esc(o.track) + '</td>' +
+        '<td class="n">' + (noW(o) ? '<span class="muted">-</span>' : fmt(o.weight)) + '</td><td>' + esc(o.who) + '</td><td class="wrap">' + esc(o.batch) + '</td>' +
+        '<td><span class="tag s-' + esc(o.status) + '">' + esc(o.status) + '</span></td><td class="wrap muted">' + esc(o.note) + '</td></tr>';
+    });
+    $('o-table').innerHTML = g; return;
+  }
+  var h = '<tr><th><input type="checkbox" onchange="selAll(this.checked)" title="全選目前列表"></th><th>日期</th><th>品名</th><th>運單 / 淘寶訂單號</th><th class="n">kg</th><th>WHO</th><th class="n">¥ / 匯率</th><th class="n">商品台幣</th><th class="n">運費分攤</th><th class="n">總額</th><th>集運單</th><th>狀態</th><th>備註</th><th></th></tr>';
   rows.forEach(function (o) {
     var lk = linkOf(o.batch), idq = '\'' + esc(o.id) + '\'';
     var miss = missing(o);
@@ -446,7 +463,7 @@ function openOrder(id) {
   $('o-again-wrap').style.display = o ? 'none' : '';
   $('o-who').innerHTML = opts(s.people, null, o ? o.who : (editOrderKeep.who || s.payer)) + '<option value="__new">＋ 新增人員…</option>';
   $('o-newwho').classList.add('hide'); $('o-newwho-in').value = '';
-  $('o-batch').innerHTML = opts(D.batches.map(function (b) { return b.name; }), '（未歸批次／待集運）', o ? o.batch : '');
+  $('o-batch').innerHTML = opts(D.batches.map(function (b) { return b.name; }), '（待集運）', o ? o.batch : '');
   $('o-status').innerHTML = opts(s.statuses, null, o ? o.status : s.statuses[0]);
   $('o-date').value = o ? o.date : (editOrderKeep.date || today());
   $('o-name').value = o ? o.name : '';
@@ -485,7 +502,7 @@ function calcOrder() {
   var s = D.settings, g = parseFloat($('o-cny').value), rate = parseFloat($('o-rate').value);
   if (isNaN(g) || isNaN(rate)) { $('o-prev').textContent = '填入金額與匯率後顯示台幣試算'; return; }
   var f1 = g * s.fee, f2 = (g + f1) * s.card, rw = (g + f1 + f2) * s.reward, twd = r2((g + f1 + f2 - rw) * rate);
-  $('o-prev').innerHTML = '淘寶手續費 ¥' + fmt(f1) + '　刷卡手續費 ¥' + fmt(f2) + '　刷卡回饋 -¥' + fmt(rw) + '<br><b>商品台幣約 ' + fmt(twd) + '</b>（運費等集運批次與重量確定後由試算表自動分攤）';
+  $('o-prev').innerHTML = '淘寶手續費 ¥' + fmt(f1) + '　刷卡手續費 ¥' + fmt(f2) + '　刷卡回饋 -¥' + fmt(rw) + '<br><b>商品台幣約 ' + fmt(twd) + '</b>（運費等集運單與重量確定後由試算表自動分攤）';
 }
 function saveOrder() {
   if ($('o-who').value === '__new') { toast('請先按「加入」新增人員，或改選現有人員', true); return; }
@@ -504,9 +521,9 @@ function delOrder(id) {
   run('deleteOrder', [id], '已刪除').then(load).catch(function () {});
 }
 
-/* ---------- 批次 ---------- */
+/* ---------- 集運單 ---------- */
 function renderBatches() {
-  var h = '<tr><th>批次</th><th>日期</th><th class="n">計費（kg × ¥/kg ＝ 運費¥）</th><th class="n">匯率</th><th class="n">運費台幣</th><th class="n">品項（缺重量）</th><th class="n">重量合計（差）</th><th class="n">物品台幣</th><th class="n">批次總額</th><th>貨態</th><th>收件人 / 地址</th><th>備註</th><th></th></tr>';
+  var h = '<tr><th>集運單</th><th>日期</th><th class="n">計費（kg × ¥/kg ＝ 運費¥）</th><th class="n">匯率</th><th class="n">運費台幣</th><th class="n">品項（缺重量）</th><th class="n">重量合計（差）</th><th class="n">物品台幣</th><th class="n">集運單總額</th><th>貨態</th><th>收件人 / 地址</th><th>備註</th><th></th></tr>';
   D.batches.slice().reverse().forEach(function (b) {
     var bad = typeof b.wdiff === 'number' && Math.abs(b.wdiff) > 2;
     var miss = D.orders.filter(function (o) { return o.batch === b.name && noW(o); }).length;
@@ -525,7 +542,7 @@ var OPEN = {}, SHIPIDS = null, BATCH_SEL = null;
 function toggleBatch(name) { if (OPEN[name]) delete OPEN[name]; else OPEN[name] = 1; renderBatches(); }
 function batchDetail(b) {
   var rows = D.orders.filter(function (o) { return o.batch === b.name; }).sort(function (x, y) { return x.row - y.row; });
-  if (!rows.length) return '<span class="muted">這個批次還沒有品項（到訂單頁勾選訂單後歸入此批次）</span>';
+  if (!rows.length) return '<span class="muted">這個集運單還沒有品項（到訂單頁勾選訂單後歸入此集運單）</span>';
   var groups = {}, seen = [];
   rows.forEach(function (o) { if (!groups[o.who]) { groups[o.who] = []; seen.push(o.who); } groups[o.who].push(o); });
   var people = D.settings.people.filter(function (p) { return groups[p]; }).concat(seen.filter(function (p) { return D.settings.people.indexOf(p) < 0; }));
@@ -543,13 +560,13 @@ function batchDetail(b) {
     });
     h += '</table>';
   });
-  h += '<div style="margin:10px 0"><b>批次合計 ' + fmt(gt) + '</b>（其中運費 ' + fmt(b.twd) + '）　<button class="btn sm" data-b="' + esc(b.name) + '" onclick="batchShip(this.dataset.b)">📋 這批出貨資訊</button></div>';
+  h += '<div style="margin:10px 0"><b>集運單合計 ' + fmt(gt) + '</b>（其中運費 ' + fmt(b.twd) + '）　<button class="btn sm" data-b="' + esc(b.name) + '" onclick="batchShip(this.dataset.b)">📋 這批出貨資訊</button></div>';
   return h;
 }
 function batchShip(name) {
   var b = D.batches.filter(function (x) { return x.name === name; })[0];
   SHIPIDS = D.orders.filter(function (o) { return o.batch === name; }).map(function (o) { return o.id; });
-  if (!SHIPIDS.length) { toast('這個批次沒有品項', true); return; }
+  if (!SHIPIDS.length) { toast('這個集運單沒有品項', true); return; }
   fillRA('sh-rcp', 'sh-addr', b ? b.rcp : '', b ? b.addr : '');
   buildShip(); openM('m-ship');
 }
@@ -563,7 +580,7 @@ function openBatchFromSel() {
   openBatch();
   BATCH_SEL = ids;
   $('b-sel').classList.remove('hide'); $('b-st-wrap').classList.remove('hide');
-  $('b-sel').innerHTML = '儲存後會把已勾選的 <b>' + ids.length + '</b> 筆訂單歸入這個批次。已知重量合計 <b>' + fmt(kg, 2) + '</b> kg' + (miss ? '，<span class="warn">' + miss + ' 筆還沒填重量</span>（之後可用「補重量」補）' : '') + '。計費公斤已先帶入已知重量，請依集運公司實際計費修改。';
+  $('b-sel').innerHTML = '儲存後會把已勾選的 <b>' + ids.length + '</b> 筆訂單歸入這個集運單。已知重量合計 <b>' + fmt(kg, 2) + '</b> kg' + (miss ? '，<span class="warn">' + miss + ' 筆還沒填重量</span>（之後可用「補重量」補）' : '') + '。計費公斤已先帶入已知重量，請依集運公司實際計費修改。';
   $('b-st').innerHTML = opts(D.settings.statuses, '（狀態不變）', D.settings.statuses.indexOf('集運回台') >= 0 ? '集運回台' : '');
   if (kg > 0) { KG_DEF = r2(kg); $('b-kg').value = KG_DEF; autoShip(); }
 }
@@ -598,7 +615,7 @@ function openBatch(name) {
   KG_DEF = '';
   editBatch = name || null; BATCH_SEL = null; $('b-sel').classList.add('hide'); $('b-st-wrap').classList.add('hide');
   var b = name ? D.batches.filter(function (x) { return x.name === name; })[0] : null;
-  $('mb-title').textContent = b ? '編輯批次' : '新增批次';
+  $('mb-title').textContent = b ? '編輯集運單' : '新增集運單';
   $('b-date').value = b ? b.date : today(); $('b-name').value = b ? b.name : '';
   $('b-kg').value = b ? b.kg : ''; $('b-unit').value = b ? b.unit : ''; $('b-cny').value = b ? b.cny : '';
   $('b-cny').dataset.manual = b ? '1' : '';
@@ -628,19 +645,19 @@ function saveBatch() {
   var newBatch = '';
   run(editBatch ? 'updateBatch' : 'addBatch', [b], editBatch ? '已儲存' : '').then(function (name) {
     if (!editBatch && BATCH_SEL) newBatch = name;
-    if (BATCH_SEL && !editBatch) return run('bulkAssign', [BATCH_SEL, name, $('b-st').value], '已建立批次，並歸入 ' + BATCH_SEL.length + ' 筆訂單').then(function () { SEL = {}; });
+    if (BATCH_SEL && !editBatch) return run('bulkAssign', [BATCH_SEL, name, $('b-st').value], '已建立集運單，並歸入 ' + BATCH_SEL.length + ' 筆訂單').then(function () { SEL = {}; });
   }).then(function () { closeM('m-batch'); return load(); }).then(function () { if (newBatch) batchShip(newBatch); }).catch(function () {});
 }
 function delBatch(name) {
   var cnt = D.orders.filter(function (o) { return o.batch === name; }).length;
-  if (!confirm('刪除批次「' + name + '」？' + (cnt ? '\n\n底下 ' + cnt + ' 筆訂單會放回「未歸批次」，狀態是「集運回台」的會還原成「在集運倉」。' : '') + '\n（已登記的付款紀錄不會動）')) return;
+  if (!confirm('刪除集運單「' + name + '」？' + (cnt ? '\n\n底下 ' + cnt + ' 筆訂單會放回「未集運」，狀態是「集運回台」的會還原成「在集運倉」。' : '') + '\n（已登記的付款紀錄不會動）')) return;
   run('deleteBatch', [name], '已刪除').then(load).catch(function () {});
 }
 
 /* ---------- 結算 ---------- */
 function renderSettle() {
   var S = D.settings, st = D.settle, R = Math.round;      // 結算金額：台幣四捨五入到整數
-  var h = '<tr><th>人員</th><th class="n">應付（已歸批次）</th><th class="n">已付</th><th class="n">未付</th><th class="n">待出貨商品（未計運費）</th><th></th></tr>';
+  var h = '<tr><th>人員</th><th class="n">應付（已集運）</th><th class="n">已付</th><th class="n">未付</th><th class="n">待出貨商品（未計運費）</th><th></th></tr>';
   var tDue = 0, tPaid = 0, tUn = 0, tPend = 0;
   st.persons.forEach(function (p) {
     var due = R(p.due), paid = R(p.paid), pend = R(p.pending), isNum = typeof p.unpaid === 'number', un = due - paid;
@@ -651,11 +668,11 @@ function renderSettle() {
   h += '<tr><td><b>合計</b></td><td class="n"><b>' + fmt(tDue, 0) + '</b></td><td class="n"><b>' + fmt(tPaid, 0) + '</b></td><td class="n"><b>' + fmt(tUn, 0) + '</b></td><td class="n"><b>' + fmt(tPend, 0) + '</b></td><td></td></tr>';
   $('s-table').innerHTML = h;
   var ok = Math.abs(st.check) < 0.5;
-  $('s-check').innerHTML = ok ? '<span class="ok">✔ 核對無誤（所有訂單總額 = 已歸批次 + 待出貨）</span>' :
-    '<span class="bad">⚠ 核對差 ' + fmt(st.check) + '：可能有 WHO 不在人員清單，或訂單的批次名稱不存在</span>';
+  $('s-check').innerHTML = ok ? '<span class="ok">✔ 核對無誤（所有訂單總額 = 已集運 + 待出貨）</span>' :
+    '<span class="bad">⚠ 核對差 ' + fmt(st.check) + '：可能有 WHO 不在人員清單，或訂單的集運單名稱不存在</span>';
   var lack = D.batches.map(function (b) { var n = D.orders.filter(function (o) { return o.batch === b.name && noW(o); }).length; return n ? b.name + '（' + n + ' 筆）' : ''; }).filter(Boolean);
-  if (lack.length) $('s-check').innerHTML += '<div class="warn" style="margin-top:6px">⚠ 這些批次還有品項未填重量，運費分攤暫時不準：' + esc(lack.join('、')) + '</div>';
-  var m = '<tr><th>批次</th>' + st.cols.map(function (c) { return '<th class="n">' + esc(c) + '</th>'; }).join('') + '<th class="n">合計</th></tr>';
+  if (lack.length) $('s-check').innerHTML += '<div class="warn" style="margin-top:6px">⚠ 這些集運單還有品項未填重量，運費分攤暫時不準：' + esc(lack.join('、')) + '</div>';
+  var m = '<tr><th>集運單</th>' + st.cols.map(function (c) { return '<th class="n">' + esc(c) + '</th>'; }).join('') + '<th class="n">合計</th></tr>';
   st.matrix.slice().reverse().forEach(function (r) {
     m += '<tr><td>' + esc(r.batch) + '</td>' + st.cols.map(function (c) { var v = r.cells[c]; return '<td class="n">' + (v ? fmt(v) : '<span class="muted">-</span>') + '</td>'; }).join('') + '<td class="n"><b>' + fmt(r.total) + '</b></td></tr>';
   });
@@ -667,7 +684,7 @@ function renderPay() {
   if (!D) return;
   var f = $('p-filter').value;
   var rows = D.payments.filter(function (p) { return !f || p.who === f; }).sort(function (a, b) { return a.date < b.date ? 1 : a.date > b.date ? -1 : b.row - a.row; });
-  var h = '<tr><th>日期</th><th>付款人</th><th class="n">金額(台)</th><th>方式</th><th>對應批次</th><th>備註</th><th></th></tr>';
+  var h = '<tr><th>日期</th><th>付款人</th><th class="n">金額(台)</th><th>方式</th><th>對應集運單</th><th>備註</th><th></th></tr>';
   rows.forEach(function (p) {
     h += '<tr><td>' + esc(p.date) + '</td><td>' + esc(p.who) + '</td><td class="n">' + fmt(p.amount, 0) + '</td><td>' + esc(p.method) + '</td><td>' + esc(p.batch) + '</td><td class="wrap muted">' + esc(p.note) + '</td>' +
       '<td><button class="btn sm danger" onclick="delPay(' + p.row + ',\'' + esc(p.who) + '\',' + p.amount + ')">刪</button></td></tr>';
@@ -683,14 +700,14 @@ function delPay(row, who, amount) {
   run('deletePayment', [{ row: row, who: who, amount: amount }], '已刪除').then(load).catch(function () {});
 }
 
-/* ---------- 多選 / 批次指派 ---------- */
+/* ---------- 多選 / 集運單指派 ---------- */
 function toggleSel(id, on) { if (on) SEL[id] = 1; else delete SEL[id]; renderBulk(); }
 function selAll(on) { visibleIds.forEach(function (id) { if (on) SEL[id] = 1; else delete SEL[id]; }); renderOrders(); }
 function renderBulk() { var n = Object.keys(SEL).length; $('bulk').classList.toggle('hide', !n); $('bulk-n').textContent = n; }
 function clearSel() { SEL = {}; renderOrders(); }
 function bulkApply() {
   var ids = Object.keys(SEL), b = $('bulk-batch').value, st = $('bulk-status').value;
-  if (b === '__keep' && !st) { toast('請選擇要指派的批次或狀態', true); return; }
+  if (b === '__keep' && !st) { toast('請選擇要指派的集運單或狀態', true); return; }
   var batch = b === '__keep' ? null : (b === '__none' ? '' : b);
   if (batch) {
     var miss = D.orders.filter(function (o) { return SEL[o.id] && noW(o); }).length;
@@ -734,7 +751,7 @@ function buildStmt() {
     var rows = mine.filter(function (o) { return o.batch === b.name; });
     if (!rows.length) return;
     var sub = 0;
-    L.push('■ 批次 ' + b.name + '（' + md(b.date) + ' 集運，共 ' + rows.length + ' 件）');
+    L.push('■ 集運單 ' + b.name + '（' + md(b.date) + ' 集運，共 ' + rows.length + ' 件）');
     rows.forEach(function (o, i) {
       var a = Number(o.twd) || 0, s = Number(o.ship) || 0, t = r2(a + s); sub = r2(sub + t);   // 和試算表一樣取到小數 2 位，明細加起來 = 小計
       L.push((i + 1) + '. ' + o.name + '　' + (a ? '商品 ' + N(a) + ' ＋ ' : '') + '運費 ' + N(s) + ' ＝ ' + N(t));
@@ -771,7 +788,7 @@ function copyStmt() {
 var WTMP = {};
 function openWeights() {
   WTMP = {};
-  $('w-batch').innerHTML = '<option value="">（全部）</option><option value="__none">（未歸批次）</option>' + D.batches.slice().reverse().map(function (b) { return '<option>' + esc(b.name) + '</option>'; }).join('');
+  $('w-batch').innerHTML = '<option value="">（全部）</option><option value="__none">（未集運）</option>' + D.batches.slice().reverse().map(function (b) { return '<option>' + esc(b.name) + '</option>'; }).join('');
   var cur = $('f-batch').value; if (cur) $('w-batch').value = cur;
   $('w-only').checked = true; renderWeights(); openM('m-weights');
 }
@@ -784,7 +801,7 @@ function wRows() {
   }).sort(function (a, b) { return a.date < b.date ? 1 : a.date > b.date ? -1 : b.row - a.row; });
 }
 function renderWeights() {
-  var h = '<tr><th>日期</th><th>品名</th><th>WHO</th><th>批次</th><th class="n">重量 kg</th></tr>';
+  var h = '<tr><th>日期</th><th>品名</th><th>WHO</th><th>集運單</th><th class="n">重量 kg</th></tr>';
   wRows().forEach(function (o) {
     var v = WTMP.hasOwnProperty(o.id) ? WTMP[o.id] : o.weight;
     h += '<tr><td>' + esc(o.date) + '</td><td class="wrap">' + esc(o.name) + '</td><td>' + esc(o.who) + '</td><td>' + esc(o.batch) + '</td>' +
@@ -801,7 +818,7 @@ function updWSum() {
     var w = WTMP.hasOwnProperty(o.id) ? parseFloat(WTMP[o.id]) : Number(o.weight);
     if (w > 0) sum += w; else miss++;
   });
-  $('w-sum').innerHTML = '批次計費 ' + fmt(b.kg, 2) + ' kg；已填合計 ' + fmt(sum, 2) + ' kg；差 <b>' + fmt(r2(b.kg - sum), 2) + '</b> kg' + (miss ? '；仍有 ' + miss + ' 筆未填' : '');
+  $('w-sum').innerHTML = '集運單計費 ' + fmt(b.kg, 2) + ' kg；已填合計 ' + fmt(sum, 2) + ' kg；差 <b>' + fmt(r2(b.kg - sum), 2) + '</b> kg' + (miss ? '；仍有 ' + miss + ' 筆未填' : '');
 }
 function saveWeights() {
   var list = [];
@@ -819,7 +836,7 @@ function openSplit(id) {
   var o = D.orders.filter(function (x) { return x.id === id; })[0];
   SP = { id: id, cny: Number(o.cny) || 0, parts: [{ who: o.who, cny: o.cny, weight: o.weight }, { who: '', cny: '', weight: '' }] };
   $('sp-title').textContent = '拆單：' + o.name;
-  $('sp-info').textContent = '原訂單 ¥' + fmt(o.cny) + '。拆開後每份各自一列，運單／淘寶訂單號／批次／狀態沿用，金額合計必須等於原金額。';
+  $('sp-info').textContent = '原訂單 ¥' + fmt(o.cny) + '。拆開後每份各自一列，運單／淘寶訂單號／集運單／狀態沿用，金額合計必須等於原金額。';
   renderSplit(); openM('m-split');
 }
 function renderSplit() {
@@ -857,8 +874,19 @@ document.addEventListener('keydown', function (e) { if (e.key === 'Escape') { cl
 
 /* ---------- 登入 ---------- */
 function showLogin(msg) {
-  TOKEN = ''; try { sessionStorage.removeItem('tk'); } catch (e) {}
+  TOKEN = ''; D = null; document.body.classList.remove('guest'); try { sessionStorage.removeItem('tk'); } catch (e) {}
   $('lg-err').textContent = msg || ''; $('lg-pw').value = ''; $('login').classList.add('on'); $('lg-pw').focus();
+}
+function doGuest() {
+  $('lg-guest').disabled = true; busy(true);
+  google.script.run.withSuccessHandler(function (t) {
+    busy(false); $('lg-guest').disabled = false; TOKEN = t;
+    try { sessionStorage.setItem('tk', t); } catch (e) {}
+    $('login').classList.remove('on'); load();
+  }).withFailureHandler(function (e) {
+    busy(false); $('lg-guest').disabled = false;
+    $('lg-err').textContent = (e && e.message ? e.message : String(e)).replace(/^Error:\s*/, '');
+  }).guestLogin();
 }
 function doLogin() {
   var pw = $('lg-pw').value; if (!pw) return;

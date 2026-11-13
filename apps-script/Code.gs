@@ -190,7 +190,7 @@ function batchRow_(b, name) {
 }
 function batchName_(b) {
   if (b.name && String(b.name).trim()) return String(b.name).trim();
-  if (!b.date) throw new Error('請填批次名稱或日期');
+  if (!b.date) throw new Error('請填集運單名稱或日期');
   return b.date + ' ' + (b.kg !== '' && b.kg != null ? b.kg + 'kg' : '');
 }
 function writeBatch_(s, row, vals, addr, rcp) {
@@ -202,7 +202,7 @@ function writeBatch_(s, row, vals, addr, rcp) {
 function addBatch_(b) {
   return withLock_(function () {
     var s = sh_('batches'), name = batchName_(b);
-    if (findRow_(s, 1, name) > 0) throw new Error('批次名稱已存在：' + name);
+    if (findRow_(s, 1, name) > 0) throw new Error('集運單名稱已存在：' + name);
     var row = lastRow_(s) + 1;
     ensureRows_(s, row);
     writeBatch_(s, row, batchRow_(b, name), b.addr, b.rcp);
@@ -213,10 +213,10 @@ function addBatch_(b) {
 function updateBatch_(b) {                 // b.oldName 為原名稱；若改名，連動訂單與付款紀錄
   return withLock_(function () {
     var s = sh_('batches'), row = findRow_(s, 1, b.oldName);
-    if (row < 0) throw new Error('找不到批次 ' + b.oldName + '，請重新整理');
+    if (row < 0) throw new Error('找不到集運單 ' + b.oldName + '，請重新整理');
     var name = batchName_(b);
     if (name !== b.oldName) {
-      if (findRow_(s, 1, name) > 0) throw new Error('批次名稱已存在：' + name);
+      if (findRow_(s, 1, name) > 0) throw new Error('集運單名稱已存在：' + name);
       renameRefs_('orders', 9, b.oldName, name);
       renameRefs_('pay', 5, b.oldName, name);
     }
@@ -235,7 +235,7 @@ function renameRefs_(key, col, from, to) {
 function deleteBatch_(name) {      // 刪批次：底下訂單放回未歸批次，「集運回台」的狀態還原成「在集運倉」
   return withLock_(function () {
     var s = sh_('batches'), row = findRow_(s, 1, name);
-    if (row < 0) throw new Error('找不到批次 ' + name);
+    if (row < 0) throw new Error('找不到集運單 ' + name);
     var o = sh_('orders'), last = lastRow_(o), freed = 0;
     if (last >= 2) {
       var rng = o.getRange(2, 9, last - 1, 2), v = rng.getValues();            // I 批次、J 狀態
@@ -446,6 +446,27 @@ function unlockSettings_(pw) {
   return true;
 }
 
+/* ---------- 訪客：不用密碼，只能看訂單（金額一律不給） ---------- */
+function guestLogin() {
+  var token = Utilities.getUuid();
+  CacheService.getScriptCache().put('tok:' + token, 'guest', 7200);     // 2 小時
+  return token;
+}
+function guestAll_() {
+  var st = getSettings_(), seen = {};
+  var orders = getOrders_().map(function (o) {
+    seen[o.who] = 1;
+    return { id: o.id, date: o.date, name: o.name, track: o.track, weight: o.weight, who: o.who, cny: '', rate: '', batch: o.batch,
+             status: o.status, note: o.note, twd: '', share: '', ship: '', total: '', dup: false, tb: '', row: o.row };
+  });
+  return {
+    guest: true,
+    settings: { fee: 0, card: 0, reward: 0, payer: '', rateType: '', people: Object.keys(seen), statuses: st.statuses, methods: [], recipients: [], addresses: [], carriers: [] },
+    orders: orders, batches: [], payments: [],
+    settle: { persons: [], total: { due: 0, paid: 0, unpaid: 0, pending: 0 }, check: 0, cols: [], matrix: [] }
+  };
+}
+
 var API_ = {
   getAll: getAll_, addOrder: addOrder_, updateOrder: updateOrder_, deleteOrder: deleteOrder_,
   addBatch: addBatch_, updateBatch: updateBatch_, deleteBatch: deleteBatch_,
@@ -454,7 +475,12 @@ var API_ = {
 };
 
 function api(token, fn, args) {                    // 唯一的資料入口：沒有有效 token 一律拒絕
-  if (!token || !CacheService.getScriptCache().get('tok:' + token)) throw new Error('__AUTH__');
+  var role = token ? CacheService.getScriptCache().get('tok:' + token) : null;
+  if (!role) throw new Error('__AUTH__');
+  if (role === 'guest') {                           // 訪客只能讀訂單
+    if (fn !== 'getAll') throw new Error('訪客模式只能查看訂單');
+    return guestAll_();
+  }
   if (!Object.prototype.hasOwnProperty.call(API_, fn)) throw new Error('未知的操作：' + fn);
   CUR_TOKEN_ = token;
   return API_[fn].apply(null, args || []);
