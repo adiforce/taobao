@@ -538,7 +538,7 @@ function openBatchFromSel() {
   BATCH_SEL = ids;
   $('b-sel').classList.remove('hide'); $('b-st-wrap').classList.remove('hide');
   $('b-sel').innerHTML = '儲存後會把已勾選的 <b>' + ids.length + '</b> 筆訂單歸入這個批次。已知重量合計 <b>' + fmt(kg, 2) + '</b> kg' + (miss ? '，<span class="warn">' + miss + ' 筆還沒填重量</span>（之後可用「補重量」補）' : '') + '。計費公斤已先帶入已知重量，請依集運公司實際計費修改。';
-  $('b-st').innerHTML = opts(D.settings.statuses, '（狀態不變）', D.settings.statuses.indexOf('在集運倉') >= 0 ? '在集運倉' : '');
+  $('b-st').innerHTML = opts(D.settings.statuses, '（狀態不變）', D.settings.statuses.indexOf('集運回台') >= 0 ? '集運回台' : '');
   if (kg > 0) { KG_DEF = r2(kg); $('b-kg').value = KG_DEF; autoShip(); }
 }
 function carList() { return (D.settings.carriers || []).map(function (x) { var i = x.indexOf('|'); return { name: x.slice(0, i), url: x.slice(i + 1) }; }).filter(function (x) { return x.name && x.url.indexOf('{num}') >= 0; }); }
