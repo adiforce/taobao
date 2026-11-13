@@ -53,8 +53,13 @@
   .form input, .form select, .form textarea { width:100%; color:var(--text); font-size:16px; }
   .preview { grid-column:1 / -1; background:#fff8f0; border:1px dashed #ffc078; border-radius:6px; padding:8px 10px; font-size:13px; }
   .actions { display:flex; gap:8px; justify-content:flex-end; margin-top:12px; align-items:center; }
-  #toast { position:fixed; bottom:18px; left:50%; transform:translateX(-50%); background:#212529; color:#fff; padding:8px 16px; border-radius:20px; display:none; z-index:99; max-width:90vw; }
+  #toast { position:fixed; bottom:18px; left:50%; transform:translateX(-50%); background:#212529; color:#fff; padding:8px 16px; border-radius:20px; display:none; z-index:130; max-width:90vw; }
   #toast.err { background:var(--bad); }
+  #mask { position:fixed; inset:0; background:rgba(255,255,255,.55); display:none; align-items:center; justify-content:center; z-index:120; cursor:wait; }
+  #mask.on { display:flex; }
+  #mask .mbox { background:#212529; color:#fff; padding:12px 22px; border-radius:10px; font-size:16px; display:flex; align-items:center; gap:10px; box-shadow:0 4px 18px rgba(0,0,0,.25); }
+  .spin { width:16px; height:16px; border:3px solid #ffffff55; border-top-color:#fff; border-radius:50%; animation:sp .8s linear infinite; }
+  @keyframes sp { to { transform:rotate(360deg); } }
   #loading { position:fixed; top:0; left:0; right:0; height:3px; background:var(--accent); display:none; z-index:100; animation:ld 1s infinite; }
   @keyframes ld { 0%{transform:scaleX(0);transform-origin:left} 50%{transform:scaleX(1);transform-origin:left} 51%{transform-origin:right} 100%{transform:scaleX(0);transform-origin:right} }
   .hide { display:none !important; }
@@ -90,6 +95,7 @@
 </head>
 <body>
 <div id="loading"></div>
+<div id="mask"><div class="mbox"><span class="spin"></span>處理中，請稍候…</div></div>
 <header>
   <h1>🛒 淘寶代購管理</h1>
   <nav id="nav">
@@ -289,13 +295,22 @@ function fmt(n, d) { if (n === '' || n == null || isNaN(n)) return ''; d = d == 
 function r2(x) { return Math.round(x * 100) / 100; }
 function today() { var d = new Date(); return d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2) + '-' + ('0' + d.getDate()).slice(-2); }
 function toast(msg, err) { var t = $('toast'); t.textContent = msg; t.className = err ? 'err' : ''; t.style.display = 'block'; clearTimeout(toast.h); toast.h = setTimeout(function () { t.style.display = 'none'; }, err ? 5000 : 2200); }
-function busy(on) { $('loading').style.display = on ? 'block' : 'none'; }
+var MASKN = 0, MASKT = null;
+function busy(on, block) {
+  $('loading').style.display = on ? 'block' : 'none';
+  if (!block) return;
+  MASKN += on ? 1 : -1; if (MASKN < 0) MASKN = 0;
+  clearTimeout(MASKT);
+  if (MASKN > 0) $('mask').classList.add('on');
+  else MASKT = setTimeout(function () { if (MASKN === 0) $('mask').classList.remove('on'); }, 120);   // 連續多步驟（建批次→歸入→重載）之間不閃爍
+}
 function run(fn, args, okMsg) {
-  busy(true);
+  var blk = fn !== 'getRate';      // 背景查匯率不擋畫面
+  busy(true, blk);
   return new Promise(function (res, rej) {
-    var g = google.script.run.withSuccessHandler(function (r) { busy(false); if (okMsg) toast(okMsg); res(r); })
+    var g = google.script.run.withSuccessHandler(function (r) { busy(false, blk); if (okMsg) toast(okMsg); res(r); })
       .withFailureHandler(function (e) {
-        busy(false);
+        busy(false, blk);
         var m = e && e.message ? e.message : String(e);
         if (m.indexOf('__AUTH__') >= 0) { showLogin('登入已逾時，請重新登入'); rej(e); return; }
         toast(m.replace(/^Error:\s*/, ''), true); rej(e);
