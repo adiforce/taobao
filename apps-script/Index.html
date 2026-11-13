@@ -86,7 +86,10 @@
     td { display:flex; justify-content:space-between; align-items:center; gap:12px; white-space:normal; text-align:right; border:0; padding:4px 2px; min-width:0; }
     td::before { content:attr(data-label); flex:0 0 auto; text-align:left; color:var(--sub); font-size:12px; }
     td[data-label=""]::before, td[colspan]::before { display:none; }
-    td[colspan] { display:block; text-align:left; }
+    td[colspan] { display:block; text-align:left; padding:2px 0; }
+    td[colspan] table { margin:4px 0; }
+    td[colspan] tr.dr { margin:0 0 6px; padding:4px 8px; }
+    td { overflow-wrap:anywhere; }
     td.wrap { min-width:0; }
     td.n { text-align:right; }
     td[data-label=""] { justify-content:flex-start; }
@@ -849,7 +852,7 @@ load();
 
 /* ---------- 手機版：表格每列變卡片（把表頭文字貼到每個格子上） ---------- */
 function labelize(root) {
-  var ts = root.tagName === 'TABLE' ? [root] : [].slice.call(root.querySelectorAll('table'));
+  var ts = (root.tagName === 'TABLE' ? [root] : []).concat([].slice.call(root.querySelectorAll('table')));   // 含展開明細裡的子表格
   ts.forEach(function (t) {
     var rows = [].slice.call(t.rows), heads = null;
     rows.forEach(function (r) {
