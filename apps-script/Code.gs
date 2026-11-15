@@ -95,11 +95,12 @@ function getOrders_() {
 function getBatches_() {
   var s = sh_('batches'), last = lastRow_(s);
   if (last < 2) return [];
+  // 依日期由舊到新排序（同日維持表格順序），前端再反轉，所以畫面上最新的在最上面
   return s.getRange(2, 1, last - 1, 19).getValues().map(function (r, i) {
     return { name: String(r[0]), date: d2s_(r[1]), kg: num_(r[2]), unit: num_(r[3]), cny: num_(r[4]),
       rate: num_(r[5]), link: String(r[6]), note: String(r[7]), twd: num_(r[8]), count: num_(r[9]),
       wsum: num_(r[10]), wdiff: num_(r[11]), itemTwd: num_(r[12]), total: num_(r[13]), addr: String(r[14]), rcp: String(r[15]), r1: r[16] === '' ? null : num_(r[16]), r2: r[17] === '' ? null : num_(r[17]), r3: r[18] === '' ? null : num_(r[18]), row: i + 2 };
-  });
+  }).sort(function (a, b) { return a.date < b.date ? -1 : a.date > b.date ? 1 : a.row - b.row; });
 }
 
 function getPayments_() {
@@ -139,7 +140,6 @@ function getSettle_() {
 
 /* ---------- 訂單 ---------- */
 function orderRow_(o, id) {
-  if (!o.name || !String(o.name).trim()) throw new Error('品名必填');
   if (!o.who) throw new Error('WHO 必填');
   return [id, s2d_(o.date), String(o.name).trim(), String(o.track || '').trim(), numIn_(o.weight),
     o.who, numIn_(o.cny), numIn_(o.rate), o.batch || '', o.status || '', o.note || ''];
@@ -148,7 +148,7 @@ function writeOrder_(s, row, vals, tb) {
   s.getRange(row, 2).setNumberFormat('yyyy/mm/dd');
   s.getRange(row, 4).setNumberFormat('@');         // 運單號 15~16 碼，必須是文字
   s.getRange(row, 1, 1, 11).setValues([vals]);
-  var t = s.getRange(row, 20); t.setNumberFormat('@'); t.setValue(String(tb || '').trim());   // 淘寶訂單號(19碼)也要存文字
+  if (tb !== undefined) { var t = s.getRange(row, 20); t.setNumberFormat('@'); t.setValue(String(tb || '').trim()); }   // 淘寶訂單號欄位已不使用；只有拆單時沿用舊值，其餘不動
 }
 
 function snap_() {                               // 目前設定的三個費率；新增時寫進該筆，之後改設定不影響舊資料
@@ -164,7 +164,7 @@ function addOrder_(o) {
     var id = 'O' + ('0000' + (max + 1)).slice(-4);
     var row = last + 1;
     ensureRows_(s, row);
-    writeOrder_(s, row, orderRow_(o, id), o.tb);
+    writeOrder_(s, row, orderRow_(o, id));
     s.getRange(row, 21, 1, 3).setValues([snap_()]);
     return id;
   });
@@ -178,7 +178,7 @@ function updateOrder_(o) {
     if (row < 0) throw new Error('找不到訂單 ' + o.id + '，請重新整理');
     var cur = s.getRange(row, 3, 1, 8).getValues()[0], curBatch = String(cur[6]), curSt = String(cur[7]);   // C..J → I 批次、J 狀態
     if (LOCKED_.indexOf(curSt) >= 0 && (String(o.status || '') !== curSt || String(o.batch || '') !== curBatch)) throw new Error(lockedMsg_(String(cur[0]), curSt));
-    writeOrder_(s, row, orderRow_(o, o.id), o.tb);
+    writeOrder_(s, row, orderRow_(o, o.id));
     return true;
   });
 }
