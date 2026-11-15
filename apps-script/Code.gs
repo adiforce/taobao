@@ -9,6 +9,7 @@ var SH = { orders: '訂單', batches: '運費批次', pay: '付款紀錄', settl
 function doGet() {
   return HtmlService.createHtmlOutputFromFile('Index')
     .setTitle('淘寶代購管理')
+    .setFaviconUrl('https://raw.githubusercontent.com/adiforce/taobao/add-webapp/apps-script/icon.png')
     .addMetaTag('viewport', 'width=device-width, initial-scale=1');
 }
 
