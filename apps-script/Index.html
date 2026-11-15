@@ -72,7 +72,10 @@
   @media (max-width:760px) {
     body { font-size:15px; }
     header { padding:6px 10px; gap:6px; }
-    header h1 { font-size:16px; }
+    header h1 { font-size:18px; flex:1; order:1; }
+    header > button.btn { order:2; min-height:40px; padding:8px 12px; }
+    header nav { order:3; flex:0 0 100%; flex-wrap:nowrap; overflow-x:auto; gap:2px; -webkit-overflow-scrolling:touch; }
+    header nav button { flex:0 0 auto; white-space:nowrap; }
     nav button { padding:8px 10px; font-size:15px; }
     main { padding:8px; }
     .card { padding:8px; }
@@ -101,6 +104,31 @@
     tr.dr:not([data-open]) td.mn { display:none; }
     td[data-label=""] { flex-wrap:wrap; gap:6px; }
     .form label { min-width:0; }
+    /* 手機版：字放大、卡片化、品名當標題 */
+    body { font-size:17px; }
+    input, select, textarea { font-size:17px; padding:11px 12px; border-radius:10px; }
+    .bar select, .bar input:not([type=checkbox]) { min-height:46px; }
+    .bar label { font-size:16px; display:flex; align-items:center; gap:8px; min-height:40px; white-space:nowrap; }
+    .bar label input[type=checkbox] { margin:0; flex:0 0 auto; }
+    button.btn, button.sm { font-size:16px; padding:11px 16px; min-height:44px; border-radius:10px; }
+    button.sm { padding:9px 14px; min-height:40px; }
+    nav button { font-size:16px; padding:10px 12px; }
+    .modal h3 { font-size:21px; }
+    .modal { padding:16px; border-radius:14px; }
+    .actions button { flex:1; }
+    .muted { font-size:15px; }
+    tr.dr { border-radius:14px; padding:10px 14px; box-shadow:0 1px 4px rgba(0,0,0,.06); }
+    td { font-size:17px; padding:7px 0; border-bottom:1px solid #f1f3f5; }
+    td::before { font-size:15px; color:var(--sub); }
+    tr.dr td:last-child { border-bottom:0; }
+    td.n b { font-size:19px; }
+    .tag { font-size:15px; padding:3px 12px; border-radius:12px; }
+    tr[data-k=o] { position:relative; display:flex; flex-direction:column; }
+    tr[data-k=o] td.ttl { order:-1; display:block; text-align:left; font-size:19px; font-weight:700; line-height:1.4; padding:2px 44px 8px 0; border-bottom:1px solid #e9ecef; }
+    tr[data-k=o] td.ttl::before { display:none; }
+    tr[data-k=o] td.ck { position:absolute; top:10px; right:10px; padding:0; border:0; z-index:2; }
+    tr[data-k=o] td.ck::before { display:none; }
+    tr[data-k=o] td.ck input { width:26px; height:26px; }
   }
 </style>
 </head>
@@ -411,8 +439,8 @@ function renderOrders() {
   rows.forEach(function (o) {
     var lk = linkOf(o.batch), idq = '\'' + esc(o.id) + '\'';
     var miss = missing(o);
-    h += '<tr><td>' + (miss.length ? '<input type="checkbox" disabled title="缺：' + esc(miss.join('、')) + '，補齊後才能勾選">' : '<input type="checkbox"' + (SEL[o.id] ? ' checked' : '') + ' onchange="toggleSel(' + idq + ', this.checked)">') + '</td>' +
-      '<td>' + esc(String(o.date).slice(2)) + '</td><td class="wrap">' + (String(o.name).trim() ? esc(o.name) : '<span class="warn">未填品名</span>') + (miss.length ? '<div class="bad" style="font-size:12px">缺：' + esc(miss.join('、')) + '</div>' : '') + '</td>' +
+    h += '<tr data-k="o"><td class="ck">' + (miss.length ? '<input type="checkbox" disabled title="缺：' + esc(miss.join('、')) + '，補齊後才能勾選">' : '<input type="checkbox"' + (SEL[o.id] ? ' checked' : '') + ' onchange="toggleSel(' + idq + ', this.checked)">') + '</td>' +
+      '<td>' + esc(String(o.date).slice(2)) + '</td><td class="wrap ttl">' + (String(o.name).trim() ? esc(o.name) : '<span class="warn">未填品名</span>') + (miss.length ? '<div class="bad" style="font-size:12px">缺：' + esc(miss.join('、')) + '</div>' : '') + '</td>' +
       '<td class="wrap' + (String(o.track).trim() && !o.dup ? ' mn' : '') + (o.dup ? ' dup' : '') + '" style="word-break:break-all">' + (String(o.track).trim() ? esc(o.track) : '<span class="warn">未填</span>') + (o.dup ? ' ⚠重複' : '') + '</td>' +
       '<td class="n">' + (noW(o) ? (o.batch ? '<span class="warn">未填</span>' : '<span class="muted">-</span>') : fmt(o.weight)) + '</td><td>' + esc(o.who) + '</td>' +
       '<td class="n mn">' + fmt(o.cny) + '<div class="muted">× ' + fmt(o.rate, 3) + '</div></td>' +
@@ -798,6 +826,7 @@ function renderWeights() {
     h += '<tr><td>' + esc(o.date) + '</td><td class="wrap">' + esc(o.name) + '</td><td>' + esc(o.who) + '</td><td>' + esc(o.batch) + '</td>' +
       '<td class="n"><input type="number" step="0.01" style="width:90px" value="' + esc(v) + '" oninput="WTMP[\'' + esc(o.id) + '\']=this.value;updWSum()"></td></tr>';
   });
+  if (!wRows().length) h += '<tr><td colspan="5" class="muted" style="text-align:center;white-space:normal;padding:18px 8px">' + ($('w-only').checked ? '這個範圍內沒有「未填重量」的訂單 👍<br>想看全部，取消上方「只列未填重量」。' : '這個範圍內沒有訂單。') + '</td></tr>';
   $('w-table').innerHTML = h; updWSum();
 }
 function updWSum() {
