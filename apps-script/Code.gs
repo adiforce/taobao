@@ -418,6 +418,15 @@ function getRate_(dateStr, type) {
   throw new Error('抓不到匯率，請手動輸入');
 }
 
+function setName_(id, name) {                   // 列表上直接改品名：只更新 C 欄
+  return withLock_(function () {
+    var s = sh_('orders'), row = findRow_(s, 1, id);
+    if (row < 0) throw new Error('找不到訂單 ' + id + '，請重新整理');
+    s.getRange(row, 3).setValue(String(name || '').trim());
+    return true;
+  });
+}
+
 function setWeights_(list) {                    // 集運後才知道重量：只更新 E 欄
   return withLock_(function () {
     var s = sh_('orders'), last = lastRow_(s);
@@ -437,7 +446,7 @@ var API_ = {
   getAll: getAll_, addOrder: addOrder_, updateOrder: updateOrder_, deleteOrder: deleteOrder_,
   addBatch: addBatch_, updateBatch: updateBatch_, deleteBatch: deleteBatch_,
   addPayment: addPayment_, deletePayment: deletePayment_, saveSettings: saveSettings_,
-  addPerson: addPerson_, bulkAssign: bulkAssign_, splitOrder: splitOrder_, setWeights: setWeights_, getRate: getRate_
+  addPerson: addPerson_, bulkAssign: bulkAssign_, splitOrder: splitOrder_, setWeights: setWeights_, setName: setName_, getRate: getRate_
 };
 
 function api(token, fn, args) {                    // 唯一的資料入口（token 已不使用，保留參數是為了相容前端）
