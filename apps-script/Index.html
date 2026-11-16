@@ -444,8 +444,9 @@
 
 <div class="modal-bg" id="m-stmt"><div class="modal">
   <h3>📄 對帳單 <span id="st-who"></span></h3>
+  <div class="bar"><select id="st-mode" onchange="buildStmt()"><option value="un">只列還沒付清的集運單</option><option value="r5">最近 5 張集運單</option><option value="all">全部集運單</option></select></div>
   <div class="bar"><label><input type="checkbox" id="st-pend" onchange="buildStmt()"> 附上「尚未集運」的商品（運費還沒算，不計入應付）</label>
-    <label><input type="checkbox" id="st-paid" checked onchange="buildStmt()"> 列出已付款紀錄</label></div>
+    <label><input type="checkbox" id="st-paid" onchange="buildStmt()"> 列出所有付款紀錄</label></div>
   <textarea id="st-out" rows="18" style="width:100%"></textarea>
   <div class="actions"><button class="btn" onclick="closeM('m-stmt')">關閉</button><button class="btn pri" onclick="copyStmt()">複製（貼到 LINE）</button></div>
 </div></div>
@@ -988,44 +989,51 @@ function copyShip() {
 
 /* ---------- 對帳單（結算頁，貼給對方收錢用） ---------- */
 var STMT_WHO = '';
-function openStmt(who) { if (!WITHDONE) { needDone().then(function () { openStmt(who); }); return; } STMT_WHO = who; $('st-who').textContent = '— ' + who; buildStmt(); openM('m-stmt'); }
+function openStmt(who) { if (!WITHDONE) { needDone().then(function () { openStmt(who); }); return; } STMT_WHO = who; $('st-who').textContent = '— ' + who; $('st-mode').value = who === D.settings.payer ? 'r5' : 'un'; buildStmt(); openM('m-stmt'); }
 function md(d) { var p = String(d || '').split('-'); return p.length === 3 ? Number(p[1]) + '/' + Number(p[2]) : String(d || ''); }
+function isDy(o) { return Number(o.cny) === 0 && String(o.cny) !== ''; }
 function buildStmt() {
-  var who = STMT_WHO, L = [], N = function (x) { return fmt(x, 2); };
+  var who = STMT_WHO, L = [], N = function (x) { return fmt(x, 2); }, I = function (x) { return fmt(Math.round(x), 0); };
+  var mode = $('st-mode').value, isPayer = who === D.settings.payer;
   var mine = D.orders.filter(function (o) { return o.who === who; });
-  var bs = D.batches.slice().sort(function (a, b) { return a.date < b.date ? -1 : a.date > b.date ? 1 : 0; });
-  L.push('【代購對帳單】' + who, '');
-  var due = 0;
-  bs.forEach(function (b) {
-    var rows = mine.filter(function (o) { return o.batch === b.name; });
-    if (!rows.length) return;
-    var sub = 0;
-    L.push('■ 集運單 ' + b.name + '（' + md(b.date) + ' 集運，共 ' + rows.length + ' 件）');
-    rows.forEach(function (o, i) {
-      var a = Number(o.twd) || 0, s = Number(o.ship) || 0, t = r2(a + s); sub = r2(sub + t);   // 和試算表一樣取到小數 2 位，明細加起來 = 小計
-      L.push((i + 1) + '. ' + o.name + '　' + (a ? '商品 ' + N(a) + ' ＋ ' : '') + '運費 ' + N(s) + ' ＝ ' + N(t));
+  var pays = D.payments.filter(function (p) { return p.who === who; });
+  var paidOf = function (bn) { var t = 0; pays.forEach(function (p) { if (p.batch === bn) t += Number(p.amount) || 0; }); return t; };
+  var bs = D.batches.slice().sort(function (a, b) { return a.date < b.date ? 1 : a.date > b.date ? -1 : b.row - a.row; })   // 最新的在上面
+    .map(function (b) {
+      var rows = mine.filter(function (o) { return o.batch === b.name; }), sub = 0;
+      rows.forEach(function (o) { sub = r2(sub + r2((Number(o.twd) || 0) + (Number(o.ship) || 0))); });
+      return { b: b, rows: rows, sub: sub, paid: paidOf(b.name) };
+    }).filter(function (x) { return x.rows.length; });
+  if (mode === 'un' && !isPayer) bs = bs.filter(function (x) { return x.sub - x.paid > 0.5; });
+  if (mode === 'r5') bs = bs.slice(0, 5);
+  L.push('【代購對帳單】' + who + (mode === 'un' && !isPayer ? '（未付清）' : mode === 'r5' ? '（最近 5 張集運單）' : ''), '');
+  var due = 0, paidSum = 0;
+  if (!bs.length) L.push(mode === 'un' ? '所有集運單都已付清 🙏' : '目前沒有集運單', '');
+  bs.forEach(function (x) {
+    L.push('■ 集運單 ' + x.b.name + '（' + md(x.b.date) + ' 集運，共 ' + x.rows.length + ' 件）');
+    x.rows.forEach(function (o, i) {
+      var a = Number(o.twd) || 0, sh = Number(o.ship) || 0, t = r2(a + sh);
+      L.push((i + 1) + '. ' + (o.name || '（未填品名）') + (isDy(o) ? '【代運】' : '') + '　' + (a ? '商品 ' + N(a) + ' ＋ ' : '') + '運費 ' + N(sh) + ' ＝ ' + N(t));
     });
-    L.push('　小計 NT$ ' + N(sub), ''); due += sub;
+    L.push('　小計 NT$ ' + N(x.sub));
+    if (!isPayer && x.paid) L.push('　已付 NT$ ' + I(x.paid) + (x.sub - x.paid > 0.5 ? '，尚欠 NT$ ' + I(x.sub - x.paid) : '，已付清'));
+    L.push(''); due += x.sub; paidSum += x.paid;
   });
-  var s = D.settle.persons.filter(function (p) { return p.who === who; })[0];
-  var paidList = D.payments.filter(function (p) { return p.who === who; }).sort(function (a, b) { return a.date < b.date ? -1 : 1; });
-  var paid = 0; paidList.forEach(function (p) { paid += Number(p.amount) || 0; });
-  if ($('st-paid').checked && paidList.length) {
-    L.push('■ 已付款');
-    paidList.forEach(function (p) { L.push('　' + md(p.date) + '　NT$ ' + fmt(Math.round(p.amount), 0) + (p.method ? '（' + p.method + '）' : '') + (p.batch ? ' ' + p.batch : '')); });
-    L.push('');
+  if (!isPayer && $('st-paid').checked && mode === 'all') {
+    var pl = pays.slice().sort(function (a, b) { return a.date < b.date ? 1 : -1; });
+    if (pl.length) { L.push('■ 付款紀錄'); pl.forEach(function (p) { L.push('　' + md(p.date) + '　NT$ ' + I(p.amount) + (p.method ? '（' + p.method + '）' : '') + (p.batch ? ' ' + p.batch : '')); }); L.push(''); }
   }
-  var I = function (x) { return fmt(Math.round(x), 0); }, un = Math.round(due) - Math.round(paid);   // 最後金額四捨五入成整數
-  if (who === D.settings.payer) L.push('────────────', '應付合計　NT$ ' + I(due), '（你是代墊運費的人，這是自己的份，不用收）');
-  else L.push('────────────', '應付合計　NT$ ' + I(due), '已付　　　NT$ ' + I(paid), '未付　　　NT$ ' + fmt(un, 0));
+  if (isPayer) L.push('────────────', '應付合計　NT$ ' + I(due), '（你是代墊運費的人，這是自己的份，不用收）');
+  else if (bs.length) L.push('────────────', '應付　NT$ ' + I(due), '已付　NT$ ' + I(paidSum), '未付　NT$ ' + fmt(Math.round(due) - Math.round(paidSum), 0));
   if ($('st-pend').checked) {
-    var pend = mine.filter(function (o) { return !o.batch; });
+    var pend = mine.filter(function (o) { return !o.batch; }).sort(function (a, b) { return a.date < b.date ? 1 : -1; });
     if (pend.length) {
       var ps = 0; L.push('', '■ 尚未集運（運費還沒算，先不用付）');
-      pend.forEach(function (o, i) { var a = Number(o.twd) || 0; ps += a; L.push((i + 1) + '. ' + o.name + (a ? '　商品 ' + N(a) : '')); });
+      pend.forEach(function (o, i) { var a = Number(o.twd) || 0; ps += a; L.push((i + 1) + '. ' + (o.name || '（未填品名）') + (isDy(o) ? '【代運】' : '') + (a ? '　商品 ' + N(a) : '')); });
       if (ps) L.push('　商品合計 NT$ ' + N(ps));
     }
   }
+  $('st-paid').parentNode.style.display = mode === 'all' && !isPayer ? '' : 'none';
   $('st-out').value = L.join('\n');
 }
 function copyStmt() {
