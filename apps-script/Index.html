@@ -67,6 +67,10 @@
   @keyframes ld { 0%{transform:scaleX(0);transform-origin:left} 50%{transform:scaleX(1);transform-origin:left} 51%{transform-origin:right} 100%{transform:scaleX(0);transform-origin:right} }
   .hide { display:none !important; }
   .mtg { display:none; }
+  .sbox { position:relative; display:inline-flex; flex:1 1 200px; min-width:180px; }
+  .sbox input { width:100%; padding-right:36px; }
+  .sbox .sx { display:none; position:absolute; right:8px; top:50%; transform:translateY(-50%); width:24px; height:24px; padding:0; border:0; border-radius:50%; background:#ced4da; color:#fff; font-size:13px; line-height:24px; cursor:pointer; }
+  .sbox.has .sx { display:block; }
   textarea.list { height:120px; }
   a { color:#1971c2; text-decoration:none; } a:hover { text-decoration:underline; }
   @media (max-width:760px) {
@@ -152,7 +156,7 @@
   <section id="t-orders">
     <div class="card">
       <div class="bar">
-        <input id="f-q" placeholder="搜尋品名 / 運單 / 備註" oninput="renderOrders()" style="min-width:180px">
+        <span class="sbox"><input id="f-q" placeholder="搜尋品名 / 運單 / 備註" oninput="renderOrders()"><button type="button" class="sx" aria-label="清除搜尋" onclick="$('f-q').value='';renderOrders();$('f-q').focus()">✕</button></span>
         <select id="f-status" onchange="renderOrders()"></select>
         <select id="f-who" onchange="renderOrders()"></select>
         <select id="f-batch" onchange="renderOrders()"></select>
@@ -222,6 +226,7 @@
         <label>刷卡回饋率（預設）<input type="number" id="s-reward" step="0.001"></label>
         <label>代墊人（收款人）<select id="s-payer"></select></label>
         <label>匯率來源（臺灣銀行牌告，人民幣）<select id="s-rtype"></select></label>
+        <label>預設匯率（取不到牌告時使用）<input type="number" id="s-defrate" step="0.001" inputmode="decimal"></label>
         <label>人員（一行一個，最多 8）<textarea class="list" id="s-people"></textarea></label>
         <label>收件人（姓名 電話，一行一個）<textarea class="list" id="s-rcps"></textarea></label>
         <label>收件地址（一行一個）<textarea class="list" id="s-addrs"></textarea></label>
@@ -243,15 +248,15 @@
     <label>WHO<select id="o-who" onchange="whoChange()"></select>
       <span id="o-newwho" class="hide" style="display:flex;gap:6px"><input id="o-newwho-in" placeholder="新人員名稱"><button type="button" class="btn sm" onclick="addPersonInline()">加入</button></span></label>
     <label class="full">品名（可先空白，之後再補）<input id="o-name"></label>
-    <label>商品金額 ¥（含運；對方自己下標、只幫忙集運的可留空）<input type="number" id="o-cny" step="0.01" oninput="calcOrder()"></label>
+    <label class="full">運單編號 <b style="color:var(--bad)">＊必填</b><input id="o-track" inputmode="numeric"></label>
+    <label>商品金額 ¥（含運；只幫忙集運的可留空）<input type="number" id="o-cny" step="0.01" inputmode="decimal" oninput="calcOrder()"></label>
     <label><a href="https://rate.bot.com.tw/xrt/quote/ltm/CNY" target="_blank" rel="noopener" title="開啟臺灣銀行人民幣牌告匯率">匯率 🔗</a> <span id="o-rate-note"></span>
-      <span style="display:flex;gap:6px"><input type="number" id="o-rate" step="0.001" oninput="rateManual('o');calcOrder()"><button type="button" class="btn sm" onclick="fetchRate('o')">取匯率</button></span></label>
-    <label>重量 kg（集運後才知道，可先空白）<input type="number" id="o-weight" step="0.01"></label>
+      <span style="display:flex;gap:6px"><input type="number" id="o-rate" step="0.001" inputmode="decimal" oninput="rateManual('o');calcOrder()"><button type="button" class="btn sm" onclick="fetchRate('o')">取匯率</button></span></label>
+    <label>重量 kg（集運後才知道，可先空白）<input type="number" id="o-weight" step="0.01" inputmode="decimal"></label>
     <label>集運單（待集運請留空）<select id="o-batch"></select></label>
-    <label>運單編號<input id="o-track" inputmode="numeric"></label>
     <label>狀態<select id="o-status"></select></label>
-    <div class="preview hide" id="o-lock"></div>
     <label>備註<input id="o-note"></label>
+    <div class="preview hide" id="o-lock"></div>
     <div class="preview" id="o-prev"></div>
   </div>
   <div class="actions">
@@ -385,7 +390,7 @@ function renderAll() {
   $('bulk-status').innerHTML = opts(s.statuses, '（狀態不變）');
   $('s-rtype').innerHTML = opts(['即期賣出', '即期買入', '現金賣出', '現金買入', '中間價'], null, s.rateType);
   if (!$('p-date').value) $('p-date').value = today();
-  $('s-fee').value = s.fee; $('s-card').value = s.card; $('s-reward').value = s.reward;
+  $('s-fee').value = s.fee; $('s-card').value = s.card; $('s-reward').value = s.reward; $('s-defrate').value = s.defRate || 4.8;
   $('s-payer').innerHTML = opts(s.people, null, s.payer);
   $('s-rcps').value = s.recipients.join('\n'); $('s-addrs').value = s.addresses.join('\n'); $('s-carriers').value = s.carriers.join('\n');
   $('s-people').value = s.people.join('\n'); $('s-statuses').value = s.statuses.join('\n'); $('s-methods').value = s.methods.join('\n');
@@ -417,6 +422,7 @@ function missing(o) {      // 資料不完整的訂單不能勾選（WHO、運�
 var SEL = {}, visibleIds = [];
 function renderOrders() {
   if (!D) return;
+  $('f-q').parentNode.classList.toggle('has', !!$('f-q').value);
   var q = $('f-q').value.trim().toLowerCase(), st = $('f-status').value, who = $('f-who').value, bt = $('f-batch').value, dup = $('f-dup').checked, nw = $('f-nw').checked;
   Object.keys(SEL).forEach(function (id) { var o = D.orders.filter(function (x) { return x.id === id; })[0]; if (!o || missing(o).length) delete SEL[id]; });
   var pend = D.orders.filter(function (o) { return o.batch === ''; }), pk = 0, pn = 0;
@@ -497,7 +503,16 @@ function fetchRate(p, silent) {
     $(p + '-rate').value = r.rate; if (!silent) $(p + '-rate').dataset.manual = '';
     $(p + '-rate-note').textContent = '（' + r.source + ' ' + r.date + ' ' + r.type + (r.date !== date ? '；' + date + ' 無牌價，取最近營業日' : '') + '）';
     if (p === 'o') calcOrder(); else calcBatch();
-  }).catch(function () {});
+  }).catch(function () {
+    var dr = D.settings.defRate || 4.8, el = $(p + '-rate');
+    if (!el.value) {
+      el.value = dr; el.dataset.manual = '';
+      $(p + '-rate-note').innerHTML = '<span class="warn">（取不到匯率，暫用預設 ' + dr + '，請確認）</span>';
+    } else if (!silent) {
+      $(p + '-rate-note').innerHTML = '<span class="warn">（取不到匯率，保留目前填的）</span>';
+    }
+    if (p === 'o') calcOrder(); else calcBatch();
+  });
 }
 function ratesOf(rec) {                     // 編輯舊資料用它當初凍結的費率；新增才用目前設定
   var s = D.settings;
@@ -515,6 +530,7 @@ function saveOrder() {
     cny: $('o-cny').value, rate: $('o-rate').value, batch: $('o-batch').value, status: $('o-status').value, note: $('o-note').value };
   var again = !editId && $('o-again').checked;
   var tk = String(o.track).trim();
+  if (!tk) { toast('運單編號必填', true); $('o-track').focus(); return; }
   if (tk) {   // 運單已存在 → 提示撞到哪幾筆（只提醒，按確定仍可存）
     var same = D.orders.filter(function (x) { return x.id !== editId && String(x.track).trim().toLowerCase() === tk.toLowerCase(); });
     if (same.length && !confirm('運單 ' + tk + ' 已經有 ' + same.length + ' 筆：\n\n' + same.slice(0, 8).map(function (x) {
@@ -890,7 +906,7 @@ function saveSplit() {
 /* ---------- 設定 ---------- */
 function lines(id) { return $(id).value.split('\n').map(function (x) { return x.trim(); }).filter(Boolean); }
 function saveSet() {
-  var st = { fee: $('s-fee').value, card: $('s-card').value, reward: $('s-reward').value, payer: $('s-payer').value, rateType: $('s-rtype').value,
+  var st = { fee: $('s-fee').value, card: $('s-card').value, reward: $('s-reward').value, defRate: $('s-defrate').value, payer: $('s-payer').value, rateType: $('s-rtype').value,
     people: lines('s-people'), recipients: lines('s-rcps'), addresses: lines('s-addrs'), carriers: lines('s-carriers'), statuses: lines('s-statuses'), methods: lines('s-methods') };
   if (st.people.indexOf(st.payer) < 0) { toast('代墊人必須在人員清單內', true); return; }
   if ([st.fee, st.card, st.reward].some(function (x) { return x === '' || isNaN(x); })) { toast('費率請填數字', true); return; }

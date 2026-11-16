@@ -72,12 +72,12 @@ function getAll_() {
 
 function getSettings_() {
   var s = sh_('set');
-  var b = s.getRange(2, 2, 5, 1).getValues();
+  var b = s.getRange(2, 2, 6, 1).getValues();
   function col(c, n) {
     return s.getRange(2, c, n || 8, 1).getValues().map(function (r) { return String(r[0]); })
       .filter(function (x) { return x !== ''; });
   }
-  return { fee: Number(b[0][0]), card: Number(b[1][0]), reward: Number(b[2][0]), payer: String(b[3][0]), rateType: String(b[4][0] || '即期賣出'),
+  return { fee: Number(b[0][0]), card: Number(b[1][0]), reward: Number(b[2][0]), payer: String(b[3][0]), rateType: String(b[4][0] || '即期賣出'), defRate: Number(b[5][0]) || 4.8,
            people: col(4), statuses: col(6), methods: col(8), recipients: col(10, 20), addresses: col(12, 20),
            carriers: (function () { var c = s.getMaxColumns() >= 14 ? col(14, 10) : []; return c.length ? c : ['新竹貨運|https://www.sjlexpress.com/m/search?Num={num}']; })() };
 }
@@ -287,7 +287,7 @@ function deletePayment_(p) {               // 以列號 + 內容雙重確認，�
 function saveSettings_(st) {
   return withLock_(function () {
     var s = sh_('set');
-    s.getRange(2, 2, 5, 1).setValues([[Number(st.fee)], [Number(st.card)], [Number(st.reward)], [st.payer], [st.rateType || '即期賣出']]);
+    s.getRange(2, 2, 6, 1).setValues([[Number(st.fee)], [Number(st.card)], [Number(st.reward)], [st.payer], [st.rateType || '即期賣出'], [Number(st.defRate) || 4.8]]);
     function pad(arr) { var a = arr.slice(0, 8); while (a.length < 8) a.push(''); return a.map(function (x) { return [x]; }); }
     function pad20(arr) { var a = (arr || []).slice(0, 20); while (a.length < 20) a.push(''); return a.map(function (x) { return [x]; }); }
     s.getRange(2, 4, 8, 1).setValues(pad(st.people));
