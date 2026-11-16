@@ -789,6 +789,8 @@ function carRe(u) { var p = u.split('{num}'); return new RegExp('^' + p.map(func
 function parseLink(link) {          // 網址 → {car, num}；對不上任何公司就是自訂網址
   link = String(link || '').trim(); var L = carList();
   for (var i = 0; i < L.length; i++) { var m = link.match(carRe(L[i].url)); if (m) return { car: L[i].name, num: decodeURIComponent(m[1]) }; }
+  var nh = link.replace(/#.*$/, '');      // 舊連結沒有 #/tracking 之類的尾巴也要認得
+  for (var j = 0; j < L.length; j++) { var m2 = nh.match(carRe(L[j].url.replace(/#.*$/, ''))); if (m2) return { car: L[j].name, num: decodeURIComponent(m2[1]) }; }
   return { car: link ? '' : (L[0] ? L[0].name : ''), num: link };
 }
 function fillCar(link) {
@@ -801,13 +803,15 @@ function linkIn() {                 // 貼整條網址時，自動認出公司�
   var p = parseLink(v); if (p.car) { $('b-car').value = p.car; $('b-link').value = p.num; }
 }
 function carChg() {}
-function copyText(t) {
-  try { if (navigator.clipboard && navigator.clipboard.writeText) return navigator.clipboard.writeText(t).catch(function () { return legacyCopy(t); }); } catch (e) {}
-  return Promise.resolve(legacyCopy(t));
+function copyText(t) {             // 先用舊方法同步複製（Apps Script 的框架常擋新版剪貼簿 API），再補試新版
+  var ok = legacyCopy(t);
+  try { if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(t).catch(function () {}); } catch (e) {}
+  return ok;
 }
 function legacyCopy(t) {
-  var ta = document.createElement('textarea'); ta.value = t; ta.style.cssText = 'position:fixed;opacity:0';
-  document.body.appendChild(ta); ta.select(); try { document.execCommand('copy'); } catch (e) {} document.body.removeChild(ta);
+  var ta = document.createElement('textarea'), ok = false; ta.value = t; ta.setAttribute('readonly', ''); ta.style.cssText = 'position:fixed;top:0;left:0;opacity:0;font-size:16px';
+  document.body.appendChild(ta); ta.focus(); ta.select(); ta.setSelectionRange(0, t.length);
+  try { ok = document.execCommand('copy'); } catch (e) {} document.body.removeChild(ta); return ok;
 }
 document.addEventListener('click', function (e) {   // 點物流查詢連結時，順手把單號複製起來（貨運網站不支援網址帶入單號，到那邊貼上即可）
   var a = e.target.closest && e.target.closest('a[href^="http"]'); if (!a || !D) return;
