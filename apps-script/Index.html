@@ -112,7 +112,7 @@
   .mtg { display:none !important; }
 
   #b-table td.wrap { min-width:160px; }
-  #b-table .sm2 { font-size:12px; margin-top:2px; }
+  .sm2 { font-size:12px; margin-top:2px; }
   #b-table .bn { font-weight:600; }
   #b-table .acts { display:flex; gap:6px; flex-wrap:wrap; justify-content:flex-end; }
   #b-table td.bdet { background:#fafaf9; white-space:normal; padding:12px 16px; }
@@ -123,6 +123,14 @@
   th.srt::after { content:" ↕"; color:#d6d3d1; font-weight:400; }
   th.srt.asc::after { content:" ↑"; color:var(--accent); }
   th.srt.desc::after { content:" ↓"; color:var(--accent); }
+  .clip { max-width:240px; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; white-space:normal; overflow-wrap:anywhere; cursor:pointer; }
+  .clip.open { display:block; -webkit-line-clamp:unset; }
+  .oacts { display:flex; gap:4px; justify-content:flex-end; }
+  .onlym { display:none; }
+  .dnote .clip { font-weight:400; }
+  .oacts .btn.sm { padding:0 9px; }
+  #o-table th, #o-table td { padding:10px 8px; }
+  #o-table td.wrap { min-width:90px; }
   /* 結算卡片 */
   #t-set { max-width:920px; }
   .kpis { display:grid; grid-template-columns:repeat(auto-fill,minmax(230px,1fr)); gap:12px; margin-bottom:12px; }
@@ -160,6 +168,7 @@
   #loading { position:fixed; top:0; left:0; right:0; height:3px; background:var(--accent); display:none; z-index:100; animation:ld 1s infinite; }
   @keyframes ld { 0%{transform:scaleX(0);transform-origin:left} 50%{transform:scaleX(1);transform-origin:left} 51%{transform-origin:right} 100%{transform:scaleX(0);transform-origin:right} }
 
+  @media (min-width:761px) and (max-width:1180px) { #o-table { font-size:13px; } #o-table th, #o-table td { padding:9px 6px; } main { padding-left:14px; padding-right:14px; } }
   /* ---------- 手機 ---------- */
   @media (max-width:760px) {
     body { font-size:16px; }
@@ -216,6 +225,11 @@
     .tag { font-size:14px; padding:3px 11px; }
     .mtg { display:inline-flex !important; }
     tr.dr:not([data-open]) td.mn { display:none; }
+    .oacts { justify-content:flex-start; gap:8px; }
+    td.onlym { display:flex; }
+    .dnote { display:none; }
+    tr.dr:not([data-open]) td.mn.onlym { display:none; }
+    .clip { max-width:none; display:block; text-align:right; }
     td.ied { justify-content:flex-end; }
     td.ied::before { margin-right:auto; }
     tr[data-k=o] { position:relative; display:flex; flex-direction:column; }
@@ -553,19 +567,19 @@ function renderOrders() {
   visibleIds = rows.filter(function (o) { return !missing(o).length; }).map(function (o) { return o.id; });
   var sum = 0, cny = 0; rows.forEach(function (o) { sum += Number(o.total) || Number(o.twd) || 0; cny += Number(o.cny) || 0; });
   $('o-sum').textContent = rows.length + ' 筆　商品 ¥' + fmt(cny) + '　台幣合計 ' + fmt(sum) + '（已集運者含運費）';
-  var h = '<tr><th><input type="checkbox" onchange="selAll(this.checked)" title="全選目前列表"></th><th>日期</th><th>品名</th><th>運單</th><th class="n">kg</th><th>WHO</th><th class="n">¥ / 匯率</th><th class="n">商品台幣</th><th class="n">運費分攤</th><th class="n">總額</th><th>集運單</th><th>狀態</th><th>備註</th><th></th></tr>';
+  var h = '<tr><th><input type="checkbox" onchange="selAll(this.checked)" title="全選目前列表"></th><th>日期</th><th>品名</th><th>運單</th><th class="n">kg</th><th>WHO</th><th class="n">¥ / 匯率</th><th class="n">台幣（商品＋運費）</th><th>集運單</th><th>狀態</th><th class="onlym">備註</th><th></th></tr>';
   rows.forEach(function (o) {
     var lk = linkOf(o.batch), idq = '\'' + esc(o.id) + '\'';
     var miss = missing(o);
     h += '<tr data-k="o"><td class="ck">' + (miss.length ? '<input type="checkbox" disabled title="缺：' + esc(miss.join('、')) + '，補齊後才能勾選">' : '<input type="checkbox"' + (SEL[o.id] ? ' checked' : '') + ' onchange="toggleSel(' + idq + ', this.checked)">') + '</td>' +
-      '<td>' + esc(String(o.date).slice(2)) + '</td><td class="wrap ttl ied" onclick="inlineEdit(this,\'name\',' + idq + ')">' + (String(o.name).trim() ? esc(o.name) : '<span class="warn">未填品名</span>') + '<span class="pen">✎</span>' + (miss.length ? '<div class="bad" style="font-size:12px">缺：' + esc(miss.join('、')) + '</div>' : '') + '</td>' +
+      '<td>' + esc(String(o.date).slice(2)) + '</td><td class="wrap ttl ied" onclick="inlineEdit(this,\'name\',' + idq + ')">' + (String(o.name).trim() ? esc(o.name) : '<span class="warn">未填品名</span>') + '<span class="pen">✎</span>' + (o.note ? '<div class="muted sm2 dnote">' + clip(o.note) + '</div>' : '') + (miss.length ? '<div class="bad" style="font-size:12px">缺：' + esc(miss.join('、')) + '</div>' : '') + '</td>' +
       '<td class="wrap' + (String(o.track).trim() && !o.dup ? ' mn' : '') + (o.dup ? ' dup' : '') + '" style="word-break:break-all">' + (String(o.track).trim() ? esc(o.track) : '<span class="warn">未填</span>') + (o.dup ? ' ⚠重複' : '') + '</td>' +
       '<td class="n ied" onclick="inlineEdit(this,\'weight\',' + idq + ')">' + (noW(o) ? (o.batch ? '<span class="warn">未填</span>' : '<span class="muted">-</span>') : fmt(o.weight)) + '<span class="pen">✎</span></td><td>' + whoTag(o.who) + '</td>' +
       '<td class="n mn">' + fmt(o.cny) + '<div class="muted ied" onclick="inlineEdit(this,\'rate\',' + idq + ')">× ' + fmt(o.rate, 3) + '<span class="pen">✎</span></div></td>' +
-      '<td class="n mn">' + fmt(o.twd) + '</td><td class="n mn" title=""' + (o.share === '' ? '' : '運費權重 ' + fmt(o.share, 5)) + '">' + fmt(o.ship) + '</td><td class="n"><b>' + fmt(o.total) + '</b></td>' +
-      '<td class="wrap">' + (lk ? '<a href="' + esc(lk) + '" target="_blank" rel="noopener">' + esc(o.batch) + ' 📦</a>' : esc(o.batch)) + '</td>' +
-      '<td><span class="tag s-' + esc(o.status) + '">' + esc(o.status) + '</span>' + (isLocked(o) ? ' <span title="已鎖定：要改請先刪除整張集運單">🔒</span>' : '') + '</td><td class="wrap muted mn">' + esc(o.note) + '</td>' +
-      '<td><button class="btn sm mtg" onclick="var r=this.closest(\'tr\');if(r.hasAttribute(\'data-open\')){r.removeAttribute(\'data-open\');this.textContent=\'更多 ▾\'}else{r.setAttribute(\'data-open\',1);this.textContent=\'收合 ▴\'}">更多 ▾</button> <button class="btn sm" onclick="openOrder(' + idq + ')">編輯</button> <button class="btn sm" onclick="openSplit(' + idq + ')">拆單</button> <button class="btn sm danger" onclick="delOrder(' + idq + ')">刪</button></td></tr>';
+      '<td class="n"><b>' + fmt(o.total) + '</b>' + (o.batch ? '<div class="muted sm2"' + (o.share === '' ? '' : ' title="運費權重 ' + fmt(o.share, 5) + '"') + '>' + fmt(o.twd) + ' ＋ 運 ' + fmt(o.ship) + '</div>' : '<div class="muted sm2">未含運費</div>') + '</td>' +
+      '<td class="wrap">' + (lk ? '<a href="' + esc(lk) + '" target="_blank" rel="noopener">' + esc(o.batch) + '</a>' : esc(o.batch)) + '</td>' +
+      '<td><span class="tag s-' + esc(o.status) + '">' + esc(o.status) + '</span>' + (isLocked(o) ? ' <span title="已鎖定：要改請先刪除整張集運單">🔒</span>' : '') + '</td><td class="wrap muted mn onlym">' + clip(o.note) + '</td>' +
+      '<td><button class="btn sm mtg" onclick="var r=this.closest(\'tr\');if(r.hasAttribute(\'data-open\')){r.removeAttribute(\'data-open\');this.textContent=\'更多 ▾\'}else{r.setAttribute(\'data-open\',1);this.textContent=\'收合 ▴\'}">更多 ▾</button><div class="oacts"><button class="btn sm" onclick="openOrder(' + idq + ')">編輯</button><button class="btn sm" onclick="openSplit(' + idq + ')">拆單</button><button class="btn sm danger" onclick="delOrder(' + idq + ')">刪</button></div></td></tr>';
   });
   $('o-table').innerHTML = h; applySort('o-table');
   renderBulk();
@@ -598,6 +612,10 @@ function openOrder(id) {
   if (!o) fetchRate('o', true);
 }
 var WHO_COLOR = { JR: '#d3f5d8', Amy: '#ffd9e6', Karrie: '#fff3b0' };   // 各人的標籤底色，要新增人就加在這
+function clip(t) {                 // 長備註：最多顯示兩行，點一下展開／收合
+  t = String(t == null ? '' : t); if (!t) return '';
+  return '<div class="clip" title="' + esc(t) + '" onclick="event.stopPropagation();this.classList.toggle(\'open\')">' + esc(t) + '</div>';
+}
 function whoTag(w) {
   var c = WHO_COLOR[w]; w = String(w == null ? '' : w);
   return c ? '<span class="wtag" style="background:' + c + '">' + esc(w) + '</span>' : esc(w);
@@ -696,7 +714,7 @@ function renderBatches() {
       '<td class="n">' + fmt(b.count, 0) + ' 件' + (miss ? ' <b class="bad">缺' + miss + '</b>' : '') + '<div class="sm2"><span class="muted">' + fmt(b.wsum, 1) + ' kg</span> <span' + (bad ? ' class="warn" style="background:#fffbeb;padding:0 4px;border-radius:4px"' : ' class="muted"') + '>(' + fmt(b.wdiff, 1) + ')</span></div></td>' +
       '<td class="n">' + fmt(b.itemTwd) + '</td><td class="n"><b>' + fmt(b.total) + '</b></td>' +
       '<td>' + (b.link ? '<a href="' + esc(b.link) + '" target="_blank" rel="noopener">查貨態 ↗</a>' + (p && p.car ? '<div class="muted sm2">' + esc(p.car) + ' ' + esc(p.num) + '</div>' : '') : '<span class="muted">-</span>') + '</td>' +
-      '<td class="wrap">' + esc(b.rcp) + (b.addr ? '<div class="muted sm2">' + esc(b.addr) + '</div>' : '') + (b.note ? '<div class="muted sm2">備註：' + esc(b.note) + '</div>' : '') + '</td>' +
+      '<td class="wrap">' + esc(b.rcp) + (b.addr ? '<div class="muted sm2">' + esc(b.addr) + '</div>' : '') + (b.note ? '<div class="muted sm2">' + clip('備註：' + b.note) + '</div>' : '') + '</td>' +
       '<td><div class="acts"><button class="btn sm" data-b="' + esc(b.name) + '" onclick="batchShip(this.dataset.b)">出貨資訊</button><button class="btn sm" onclick="openBatch(\'' + esc(b.name) + '\')">編輯</button><button class="btn sm danger" onclick="delBatch(\'' + esc(b.name) + '\')">刪</button></div></td></tr>';
     if (OPEN[b.name]) h += '<tr><td colspan="8" class="bdet">' + batchDetail(b) + '</td></tr>';
   });
@@ -898,7 +916,7 @@ function renderPay() {
   var rows = D.payments.filter(function (p) { return !f || p.who === f; }).sort(function (a, b) { return a.date < b.date ? 1 : a.date > b.date ? -1 : b.row - a.row; });
   var h = '<tr><th>日期</th><th>付款人</th><th class="n">金額(台)</th><th>方式</th><th>對應集運單</th><th>備註</th><th></th></tr>';
   rows.forEach(function (p) {
-    h += '<tr><td>' + esc(p.date) + '</td><td>' + whoTag(p.who) + '</td><td class="n">' + fmt(p.amount, 0) + '</td><td>' + esc(p.method) + '</td><td>' + esc(p.batch) + '</td><td class="wrap muted">' + esc(p.note) + '</td>' +
+    h += '<tr><td>' + esc(p.date) + '</td><td>' + whoTag(p.who) + '</td><td class="n">' + fmt(p.amount, 0) + '</td><td>' + esc(p.method) + '</td><td>' + esc(p.batch) + '</td><td class="wrap muted">' + clip(p.note) + '</td>' +
       '<td><button class="btn sm danger" onclick="delPay(' + p.row + ',\'' + esc(p.who) + '\',' + p.amount + ')">刪</button></td></tr>';
   });
   $('p-table').innerHTML = h; applySort('p-table');
