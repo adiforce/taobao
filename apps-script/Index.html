@@ -679,6 +679,19 @@ function linkIn() {                 // 貼整條網址時，自動認出公司�
   var p = parseLink(v); if (p.car) { $('b-car').value = p.car; $('b-link').value = p.num; }
 }
 function carChg() {}
+function copyText(t) {
+  try { if (navigator.clipboard && navigator.clipboard.writeText) return navigator.clipboard.writeText(t).catch(function () { return legacyCopy(t); }); } catch (e) {}
+  return Promise.resolve(legacyCopy(t));
+}
+function legacyCopy(t) {
+  var ta = document.createElement('textarea'); ta.value = t; ta.style.cssText = 'position:fixed;opacity:0';
+  document.body.appendChild(ta); ta.select(); try { document.execCommand('copy'); } catch (e) {} document.body.removeChild(ta);
+}
+document.addEventListener('click', function (e) {   // 點物流查詢連結時，順手把單號複製起來（貨運網站不支援網址帶入單號，到那邊貼上即可）
+  var a = e.target.closest && e.target.closest('a[href^="http"]'); if (!a || !D) return;
+  var p = parseLink(a.getAttribute('href')); if (!p.car || !p.num) return;
+  copyText(p.num); toast('已複製單號 ' + p.num + '，到查詢頁貼上即可');
+});
 function buildLink() {
   var v = $('b-link').value.trim(); if (!v) return '';
   if (/^https?:\/\//i.test(v)) return v;
