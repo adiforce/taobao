@@ -67,8 +67,8 @@
   @keyframes ld { 0%{transform:scaleX(0);transform-origin:left} 50%{transform:scaleX(1);transform-origin:left} 51%{transform-origin:right} 100%{transform:scaleX(0);transform-origin:right} }
   .hide { display:none !important; }
   .mtg { display:none; }
-  td.ied { cursor:pointer; }
-  td.ied:hover { background:#fff7ed; }
+    .ied { cursor:pointer; }
+  .ied:hover { background:#fff7ed; }
   .pen { color:#adb5bd; font-size:13px; margin-left:6px; }
   input.ie { width:100%; min-width:90px; }
   .sbox { position:relative; display:inline-flex; flex:1 1 200px; min-width:180px; }
@@ -461,7 +461,7 @@ function renderOrders() {
       '<td>' + esc(String(o.date).slice(2)) + '</td><td class="wrap ttl ied" onclick="inlineEdit(this,\'name\',' + idq + ')">' + (String(o.name).trim() ? esc(o.name) : '<span class="warn">未填品名</span>') + '<span class="pen">✎</span>' + (miss.length ? '<div class="bad" style="font-size:12px">缺：' + esc(miss.join('、')) + '</div>' : '') + '</td>' +
       '<td class="wrap' + (String(o.track).trim() && !o.dup ? ' mn' : '') + (o.dup ? ' dup' : '') + '" style="word-break:break-all">' + (String(o.track).trim() ? esc(o.track) : '<span class="warn">未填</span>') + (o.dup ? ' ⚠重複' : '') + '</td>' +
       '<td class="n ied" onclick="inlineEdit(this,\'weight\',' + idq + ')">' + (noW(o) ? (o.batch ? '<span class="warn">未填</span>' : '<span class="muted">-</span>') : fmt(o.weight)) + '<span class="pen">✎</span></td><td>' + esc(o.who) + '</td>' +
-      '<td class="n mn">' + fmt(o.cny) + '<div class="muted">× ' + fmt(o.rate, 3) + '</div></td>' +
+      '<td class="n mn">' + fmt(o.cny) + '<div class="muted ied" onclick="inlineEdit(this,\'rate\',' + idq + ')">× ' + fmt(o.rate, 3) + '<span class="pen">✎</span></div></td>' +
       '<td class="n mn">' + fmt(o.twd) + '</td><td class="n mn" title=""' + (o.share === '' ? '' : '運費權重 ' + fmt(o.share, 5)) + '">' + fmt(o.ship) + '</td><td class="n"><b>' + fmt(o.total) + '</b></td>' +
       '<td class="wrap">' + (lk ? '<a href="' + esc(lk) + '" target="_blank" rel="noopener">' + esc(o.batch) + ' 📦</a>' : esc(o.batch)) + '</td>' +
       '<td><span class="tag s-' + esc(o.status) + '">' + esc(o.status) + '</span>' + (isLocked(o) ? ' <span title="已鎖定：要改請先刪除整張集運單">🔒</span>' : '') + '</td><td class="wrap muted mn">' + esc(o.note) + '</td>' +
@@ -500,14 +500,14 @@ function openOrder(id) {
 function inlineEdit(td, field, id) {      // 在列表上直接改品名 / 重量，不用開編輯視窗
   if (td.querySelector('input.ie')) return;
   var o = D.orders.filter(function (x) { return x.id === id; })[0]; if (!o) return;
-  var old = field === 'name' ? String(o.name) : (Number(o.weight) > 0 ? String(o.weight) : ''), html = td.innerHTML, done = false;
-  td.innerHTML = '<input class="ie" ' + (field === 'weight' ? 'type="number" step="0.01" inputmode="decimal" ' : '') + 'value="' + esc(old) + '">';
+  var old = field === 'name' ? String(o.name) : field === 'rate' ? (Number(o.rate) > 0 ? String(o.rate) : '') : (Number(o.weight) > 0 ? String(o.weight) : ''), html = td.innerHTML, done = false;
+  td.innerHTML = '<input class="ie" ' + (field !== 'name' ? 'type="number" step="' + (field === 'rate' ? '0.001' : '0.01') + '" inputmode="decimal" ' : '') + 'value="' + esc(old) + '">';
   var inp = td.firstChild; inp.focus(); inp.select();
   function commit() {
     if (done) return; done = true;
     var v = inp.value.trim();
     if (v === old.trim()) { td.innerHTML = html; return; }
-    (field === 'name' ? run('setName', [id, v], '已更新') : run('setWeights', [[{ id: id, weight: v }]], '已更新'))
+    (field === 'name' ? run('setName', [id, v], '已更新') : field === 'rate' ? run('setRate', [id, v], '已更新') : run('setWeights', [[{ id: id, weight: v }]], '已更新'))
       .then(load).catch(function () { td.innerHTML = html; });
   }
   inp.onblur = commit;
