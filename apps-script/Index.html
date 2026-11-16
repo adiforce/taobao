@@ -514,6 +514,13 @@ function saveOrder() {
   var o = { id: editId, date: $('o-date').value, name: $('o-name').value, track: $('o-track').value, weight: $('o-weight').value, who: $('o-who').value,
     cny: $('o-cny').value, rate: $('o-rate').value, batch: $('o-batch').value, status: $('o-status').value, note: $('o-note').value };
   var again = !editId && $('o-again').checked;
+  var tk = String(o.track).trim();
+  if (tk) {   // 運單已存在 → 提示撞到哪幾筆（只提醒，按確定仍可存）
+    var same = D.orders.filter(function (x) { return x.id !== editId && String(x.track).trim().toLowerCase() === tk.toLowerCase(); });
+    if (same.length && !confirm('運單 ' + tk + ' 已經有 ' + same.length + ' 筆：\n\n' + same.slice(0, 8).map(function (x) {
+      return x.id + '　' + (String(x.name).trim() || '（未填品名）') + '（' + x.who + '，' + x.date + '）';
+    }).join('\n') + (same.length > 8 ? '\n…' : '') + '\n\n仍要儲存嗎？')) return;
+  }
   run(editId ? 'updateOrder' : 'addOrder', [o], '已儲存').then(function () {
     lastRate = o.rate;
     if (again) { editOrderKeep = { who: o.who, date: o.date, rate: o.rate }; closeM('m-order'); return load().then(function () { openOrder(); }); }
