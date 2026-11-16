@@ -112,6 +112,7 @@
   .mtg { display:none !important; }
 
   /* 結算卡片 */
+  #t-set { max-width:920px; }
   .kpis { display:grid; grid-template-columns:repeat(auto-fill,minmax(230px,1fr)); gap:12px; margin-bottom:12px; }
   .kpi { background:#fff; border:1px solid var(--line); border-radius:var(--r); padding:14px 16px; box-shadow:var(--sh); display:flex; flex-direction:column; gap:6px; }
   .kpi .kh { display:flex; align-items:center; justify-content:space-between; }
@@ -306,7 +307,7 @@
   <section id="t-set" class="hide">
     <div class="phead"><div><h2>設定</h2><div class="desc">費率只影響之後新增的訂單與集運單，舊資料保留當時的費率</div></div>
       <div class="pact"><button class="btn pri" onclick="saveSet()">儲存設定</button></div></div>
-    <div class="card" style="max-width:920px">
+    <div class="card">
       <div class="ch"><b>費率與匯率</b></div>
       <div class="form f3">
         <label>淘寶手續費率（0.03 = 3%）<input type="number" id="s-fee" step="0.001"></label>
@@ -317,7 +318,7 @@
         <label>代墊人（收款人）<select id="s-payer"></select></label>
       </div>
     </div>
-    <div class="card" style="max-width:920px">
+    <div class="card">
       <div class="ch"><b>清單</b><span class="muted">一行一個</span></div>
       <div class="form">
         <label>人員（最多 8）<textarea class="list" id="s-people"></textarea></label>
