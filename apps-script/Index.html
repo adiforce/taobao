@@ -764,7 +764,7 @@ function batchDetail(b) {
     });
     h += '</table>';
   });
-  h += '<div style="margin:10px 0"><b>集運單合計 ' + fmt(gt) + '</b>（其中運費 ' + fmt(b.twd) + '）　<button class="btn sm" data-b="' + esc(b.name) + '" onclick="batchShip(this.dataset.b)">📋 這批出貨資訊</button> <button class="btn sm" data-b="' + esc(b.name) + '" onclick="copyBatchDetail(this.dataset.b)">📄 複製明細</button></div>';
+  h += '<div style="margin:10px 0"><b>集運單合計 ' + fmt(gt) + '</b>（其中運費 ' + fmt(b.twd) + '）　<button class="btn sm" data-b="' + esc(b.name) + '" onclick="batchShip(this.dataset.b)">📋 這批出貨資訊</button> <button class="btn sm" data-b="' + esc(b.name) + '" onclick="copyBatchDetail(this.dataset.b)">💬 複製明細（LINE）</button> <button class="btn sm" data-b="' + esc(b.name) + '" onclick="copyBatchDetail(this.dataset.b, 1)">📊 複製表格（Excel）</button></div>';
   return warn + h;
 }
 function batchShip(name) {
@@ -991,18 +991,34 @@ function copyShip() {
 var STMT_WHO = '';
 function openStmt(who) { if (!WITHDONE) { needDone().then(function () { openStmt(who); }); return; } STMT_WHO = who; $('st-who').textContent = '— ' + who; $('st-mode').value = who === D.settings.payer ? 'r5' : 'un'; buildStmt(); openM('m-stmt'); }
 function md(d) { var p = String(d || '').split('-'); return p.length === 3 ? Number(p[1]) + '/' + Number(p[2]) : String(d || ''); }
-function copyBatchDetail(name) {   // 複製集運單明細（Tab 分隔，可直接貼到 Excel／Google 試算表，也能貼 LINE）
+function copyBatchDetail(name, tsv) {   // 複製集運單明細：預設給 LINE 看的分組文字；tsv=1 為 Tab 分隔表格（貼 Excel／試算表）
   var b = D.batches.filter(function (x) { return x.name === name; })[0];
   var rows = D.orders.filter(function (o) { return o.batch === name; });
   if (!rows.length) { toast('這張集運單沒有訂單', true); return; }
   var ppl = D.settings.people || [], rank = function (w) { var i = ppl.indexOf(w); return i < 0 ? 99 : i; };
   rows.sort(function (a, c) { return rank(a.who) - rank(c.who) || (a.who < c.who ? -1 : a.who > c.who ? 1 : 0) || (a.date < c.date ? -1 : 1); });
-  var L = ['集運單 ' + name + (b ? '（' + b.date + '）' : ''), ['人', '品名', '金額', '單號', '重量', '運費'].join('\t')], tw = 0, tk = 0, ts = 0;
-  rows.forEach(function (o) {
-    var a = Number(o.twd) || 0, k = Number(o.weight) || 0, sh = Number(o.ship) || 0; tw += a; tk += k; ts += sh;
-    L.push([o.who, (o.name || '（未填品名）') + (isDy(o) ? '【代運】' : ''), fmt(a), String(o.track || ''), noW(o) ? '' : fmt(k), fmt(sh)].join('\t'));
-  });
-  L.push(['合計', rows.length + ' 件', fmt(tw), '', fmt(tk), fmt(ts)].join('\t'));
+  var L = [], tw = 0, tk = 0, ts = 0;
+  if (tsv) {
+    L.push('集運單 ' + name + (b ? '（' + b.date + '）' : ''), ['人', '品名', '金額', '單號', '重量', '運費'].join('\t'));
+    rows.forEach(function (o) {
+      var a = Number(o.twd) || 0, k = Number(o.weight) || 0, sh = Number(o.ship) || 0; tw += a; tk += k; ts += sh;
+      L.push([o.who, (o.name || '（未填品名）') + (isDy(o) ? '【代運】' : ''), fmt(a), String(o.track || ''), noW(o) ? '' : fmt(k), fmt(sh)].join('\t'));
+    });
+    L.push(['合計', rows.length + ' 件', fmt(tw), '', fmt(tk), fmt(ts)].join('\t'));
+  } else {
+    L.push('📦 集運單 ' + name + (b ? '（' + md(b.date) + '）' : '') + '，共 ' + rows.length + ' 件');
+    var cur = null, n = 0, pw = 0, ps = 0;
+    var flush = function () { if (cur !== null) L.push('　▸ ' + cur + ' 小計：商品 ' + fmt(pw) + ' ＋ 運費 ' + fmt(ps) + ' ＝ ' + fmt(pw + ps)); };
+    rows.forEach(function (o) {
+      if (o.who !== cur) { flush(); cur = o.who; n = 0; pw = 0; ps = 0; L.push('', '【' + cur + '】'); }
+      var a = Number(o.twd) || 0, k = Number(o.weight) || 0, sh = Number(o.ship) || 0; tw += a; tk += k; ts += sh; pw += a; ps += sh;
+      L.push((++n) + '. ' + (o.name || '（未填品名）') + (isDy(o) ? '【代運】' : ''));
+      L.push('　單號 ' + (o.track || '-') + '｜' + (noW(o) ? '-' : fmt(k)) + ' kg');
+      L.push('　' + (isDy(o) ? '' : '商品 ' + fmt(a) + ' ＋ ') + '運費 ' + fmt(sh) + ' ＝ ' + fmt(a + sh));
+    });
+    flush();
+    L.push('', '────────────', '合計 ' + rows.length + ' 件｜' + fmt(tk, 1) + ' kg', '商品 ' + fmt(tw) + ' ＋ 運費 ' + fmt(ts) + ' ＝ ' + fmt(tw + ts));
+  }
   copyText(L.join('\n')); toast('已複製 ' + rows.length + ' 筆明細');
 }
 function isDy(o) { return Number(o.cny) === 0 && String(o.cny) !== ''; }
