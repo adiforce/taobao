@@ -624,7 +624,7 @@ function batchDetail(b) {
     list.forEach(function (o) { wt += Number(o.share) || 0; item += Number(o.twd) || 0; ship += Number(o.ship) || 0; tot += Number(o.total) || 0; });
     gt += tot;
     var paid = D.payments.filter(function (p) { return p.who === w && p.batch === b.name; }).reduce(function (s, p) { return s + (Number(p.amount) || 0); }, 0);
-    h += '<div style="margin:10px 0 4px"><b>' + esc(w) + '</b>　' + list.length + ' 筆　商品 ' + fmt(item) + ' ＋ 運費(總權重:' + fmt(wt, 5) + ') ' + fmt(ship) + ' ＝ <b>' + fmt(tot) + '</b>' + (paid ? '　<span class="ok">此批已登記付款 ' + fmt(paid) + '</span>' : '') + '</div>';
+    h += '<div style="margin:10px 0 4px"><b>' + whoTag(w) + '</b>　' + list.length + ' 筆　商品 ' + fmt(item) + ' ＋ 運費(總權重:' + fmt(wt, 5) + ') ' + fmt(ship) + ' ＝ <b>' + fmt(tot) + '</b>' + (paid ? '　<span class="ok">此批已登記付款 ' + fmt(paid) + '</span>' : '') + '</div>';
     h += '<table style="width:100%"><tr><th>日期</th><th>品名</th><th>運單</th><th class="n">kg</th><th class="n">商品台幣</th><th class="n">運費權重</th><th class="n">運費分攤</th><th class="n">小計</th></tr>';
     list.forEach(function (o) {
       h += '<tr><td>' + esc(o.date) + '</td><td class="wrap">' + esc(o.name) + '</td><td>' + esc(o.track) + '</td>' +
