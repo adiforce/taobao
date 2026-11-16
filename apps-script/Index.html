@@ -134,6 +134,14 @@
   .oacts .btn.sm { padding:0 9px; }
   #o-table th, #o-table td { padding:10px 8px; }
   #o-table td.wrap { min-width:90px; }
+  .shtwrap { background:#fff; padding:6px 2px; }
+  .shthead { display:flex; gap:12px; align-items:baseline; margin-bottom:10px; font-size:16px; }
+  .shtgrid { display:grid; grid-template-columns:minmax(0,1fr) 260px; gap:16px; align-items:start; }
+  table.sht { border:1px solid var(--line); border-radius:10px; overflow:hidden; font-size:13px; margin-bottom:12px; }
+  table.sht th, table.sht td { padding:7px 9px; white-space:nowrap; position:static; }
+  table.sht td.tk { font-variant-numeric:tabular-nums; color:#57534e; }
+  table.sht tr.sum td { background:#fafaf9; font-weight:700; border-top:1px solid var(--line); }
+  table.sht.kv td:first-child { color:#57534e; }
   /* 結算卡片 */
   #t-set { max-width:920px; }
   .kpis { display:grid; grid-template-columns:repeat(auto-fill,minmax(230px,1fr)); gap:12px; margin-bottom:12px; }
@@ -232,6 +240,18 @@
     td.onlym { display:flex; }
     .dnote { display:none; }
     tr.dr:not([data-open]) td.mn.onlym { display:none; }
+    .shtgrid { grid-template-columns:1fr; }
+    #sheet-box table.sht, #sheet-box table.sht tbody { display:table; width:100%; }
+    #sheet-box table.sht tbody { display:table-row-group; }
+    #sheet-box table.sht tr { display:table-row !important; position:static; border:0; padding:0; margin:0; box-shadow:none; background:none; }
+    #sheet-box table.sht td, #sheet-box table.sht th { display:table-cell !important; text-align:left; font-size:12px; padding:6px; white-space:normal; }
+    #sheet-box table.sht td.n, #sheet-box table.sht th.n { text-align:right; }
+    #sheet-box table.sht td.n, #sheet-box table.sht th.n, #sheet-box table.sht td.tk { white-space:nowrap; }
+    #sheet-box table.sht td b, #sheet-box table.sht td.n b { font-size:12px; }
+    #sheet-box .wtag { font-size:11px; padding:1px 7px; white-space:nowrap; }
+    #sheet-box table.sht td { min-width:0; }
+    #sheet-box table.sht td::before { display:none; }
+    #sheet-box .shtl { overflow-x:auto; }
     .clip { max-width:none; display:block; text-align:right; }
     td.ied { justify-content:flex-end; }
     td.ied::before { margin-right:auto; }
@@ -442,6 +462,11 @@
   <div class="actions"><button class="btn" onclick="closeM('m-ship')">關閉</button><button class="btn pri" onclick="copyShip()">複製</button></div>
 </div></div>
 
+<div class="modal-bg" id="m-sheet"><div class="modal" style="max-width:1080px">
+  <h3>集運單明細表</h3>
+  <div id="sheet-box"></div>
+  <div class="actions"><span class="muted" style="margin-right:auto;font-size:13px">「存成圖片」會輸出完整的電腦版表格（手機也是）</span><button class="btn" onclick="closeM('m-sheet')">關閉</button><button class="btn pri" onclick="saveSheetImg()">存成圖片</button></div>
+</div></div>
 <div class="modal-bg" id="m-stmt"><div class="modal">
   <h3>📄 對帳單 <span id="st-who"></span></h3>
   <div class="bar"><select id="st-mode" onchange="buildStmt()"><option value="un">只列還沒付清的集運單</option><option value="r5">最近 5 張集運單</option><option value="all">全部集運單</option></select></div>
@@ -764,7 +789,7 @@ function batchDetail(b) {
     });
     h += '</table>';
   });
-  h += '<div style="margin:10px 0"><b>集運單合計 ' + fmt(gt) + '</b>（其中運費 ' + fmt(b.twd) + '）　<button class="btn sm" data-b="' + esc(b.name) + '" onclick="batchShip(this.dataset.b)">📋 這批出貨資訊</button> <button class="btn sm" data-b="' + esc(b.name) + '" onclick="copyBatchDetail(this.dataset.b)">💬 複製明細（LINE）</button> <button class="btn sm" data-b="' + esc(b.name) + '" onclick="copyBatchDetail(this.dataset.b, 1)">📊 複製表格（Excel）</button></div>';
+  h += '<div style="margin:10px 0"><b>集運單合計 ' + fmt(gt) + '</b>（其中運費 ' + fmt(b.twd) + '）　<button class="btn sm" data-b="' + esc(b.name) + '" onclick="batchShip(this.dataset.b)">📋 這批出貨資訊</button> <button class="btn sm" data-b="' + esc(b.name) + '" onclick="copyBatchDetail(this.dataset.b)">💬 複製明細（LINE）</button> <button class="btn sm" data-b="' + esc(b.name) + '" onclick="copyBatchDetail(this.dataset.b, 1)">📊 複製表格（Excel）</button> <button class="btn sm pri" data-b="' + esc(b.name) + '" onclick="openSheet(this.dataset.b)">🧾 明細表</button></div>';
   return warn + h;
 }
 function batchShip(name) {
@@ -991,6 +1016,47 @@ function copyShip() {
 var STMT_WHO = '';
 function openStmt(who) { if (!WITHDONE) { needDone().then(function () { openStmt(who); }); return; } STMT_WHO = who; $('st-who').textContent = '— ' + who; $('st-mode').value = who === D.settings.payer ? 'r5' : 'un'; buildStmt(); openM('m-stmt'); }
 function md(d) { var p = String(d || '').split('-'); return p.length === 3 ? Number(p[1]) + '/' + Number(p[2]) : String(d || ''); }
+function openSheet(name) {        // 集運單明細小表格：左邊每筆明細，右邊每人加總、總運費、總商品
+  var b = D.batches.filter(function (x) { return x.name === name; })[0] || { name: name };
+  var rows = D.orders.filter(function (o) { return o.batch === name; });
+  if (!rows.length) { toast('這張集運單沒有訂單', true); return; }
+  var ppl = D.settings.people || [], rank = function (w) { var i = ppl.indexOf(w); return i < 0 ? 99 : i; };
+  rows.sort(function (a, c) { return rank(a.who) - rank(c.who) || (a.who < c.who ? -1 : a.who > c.who ? 1 : 0) || (a.date < c.date ? -1 : 1); });
+  var per = {}, order = [], tw = 0, ts = 0, tk = 0;
+  var h = '<table class="sht"><tr><th>人</th><th>品名</th><th>單號</th><th class="n">重量</th><th class="n">商品</th><th class="n">運費</th><th class="n">小計</th></tr>';
+  rows.forEach(function (o) {
+    var a = Number(o.twd) || 0, sh = Number(o.ship) || 0, k = Number(o.weight) || 0; tw += a; ts += sh; tk += k;
+    if (!per[o.who]) { per[o.who] = { a: 0, s: 0, n: 0 }; order.push(o.who); } per[o.who].a += a; per[o.who].s += sh; per[o.who].n++;
+    h += '<tr><td>' + whoTag(o.who) + '</td><td>' + esc(o.name || '（未填品名）') + dyTag(o) + '</td><td class="tk">' + esc(o.track || '') + '</td><td class="n">' + (noW(o) ? '-' : fmt(k)) + '</td><td class="n">' + (isDy(o) ? '<span class="muted">-</span>' : fmt(a)) + '</td><td class="n">' + fmt(sh) + '</td><td class="n"><b>' + fmt(a + sh) + '</b></td></tr>';
+  });
+  h += '<tr class="sum"><td colspan="3">合計 ' + rows.length + ' 件</td><td class="n">' + fmt(tk, 1) + '</td><td class="n">' + fmt(tw) + '</td><td class="n">' + fmt(ts) + '</td><td class="n">' + fmt(tw + ts) + '</td></tr></table>';
+  var r = '<table class="sht"><tr><th>人</th><th class="n">件</th><th class="n">應付</th></tr>';
+  order.forEach(function (w) { var p = per[w]; r += '<tr><td>' + whoTag(w) + '</td><td class="n">' + p.n + '</td><td class="n"><b>' + fmt(p.a + p.s) + '</b><div class="muted sm2">商品 ' + fmt(p.a) + ' ＋ 運 ' + fmt(p.s) + '</div></td></tr>'; });
+  r += '</table><table class="sht kv"><tr><td>總商品</td><td class="n">' + fmt(tw) + '</td></tr><tr><td>總運費</td><td class="n">' + fmt(ts) + '</td></tr>' +
+    (b.kg ? '<tr><td class="muted">計費</td><td class="n muted">' + fmt(b.kg) + ' kg × ¥' + fmt(b.unit) + ' × ' + fmt(b.rate, 3) + '</td></tr>' : '') +
+    '<tr class="sum"><td>合計</td><td class="n">' + fmt(tw + ts) + '</td></tr></table>';
+  $('sheet-box').innerHTML = '<div id="sheet-cap" class="shtwrap"><div class="shthead"><b>📦 ' + esc(name) + '</b><span class="muted">' + esc(b.date || '') + (b.kg ? '　' + fmt(b.kg, 0) + ' kg' : '') + '</span></div>' +
+    '<div class="shtgrid"><div class="shtl">' + h + '</div><div class="shtr">' + r + '</div></div></div>';
+  openM('m-sheet');
+}
+function saveSheetImg() {
+  var go = function () {
+    busy(true, true);
+    html2canvas($('sheet-cap'), { backgroundColor: '#ffffff', scale: 2, windowWidth: 1100, onclone: function (d) { var c = d.getElementById('sheet-cap'); c.style.width = '1040px'; c.style.padding = '16px'; } }).then(function (cv) {
+      busy(false, true);
+      cv.toBlob(function (blob) {
+        var fn = '集運單明細.png', file = null;
+        try { file = new File([blob], fn, { type: 'image/png' }); } catch (e) {}
+        if (file && navigator.canShare && navigator.canShare({ files: [file] })) { navigator.share({ files: [file] }).catch(function () {}); return; }
+        var url = URL.createObjectURL(blob), a = document.createElement('a'); a.href = url; a.download = fn; document.body.appendChild(a); a.click(); a.remove();
+        var w = window.open(); if (w) w.document.write('<title>' + fn + '</title><img src="' + cv.toDataURL('image/png') + '" style="max-width:100%">');
+      }, 'image/png');
+    }).catch(function (e) { busy(false, true); toast('存圖失敗，請直接截圖：' + e, true); });
+  };
+  if (window.html2canvas) return go();
+  var sc = document.createElement('script'); sc.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
+  sc.onload = go; sc.onerror = function () { toast('載入存圖工具失敗，請直接截圖', true); }; document.head.appendChild(sc);
+}
 function copyBatchDetail(name, tsv) {   // 複製集運單明細：預設給 LINE 看的分組文字；tsv=1 為 Tab 分隔表格（貼 Excel／試算表）
   var b = D.batches.filter(function (x) { return x.name === name; })[0];
   var rows = D.orders.filter(function (o) { return o.batch === name; });
