@@ -111,6 +111,13 @@
   input.ie { width:100%; min-width:90px; min-height:32px; padding:4px 8px; }
   .mtg { display:none !important; }
 
+  #b-table td.wrap { min-width:160px; }
+  #b-table .sm2 { font-size:12px; margin-top:2px; }
+  #b-table .bn { font-weight:600; }
+  #b-table .acts { display:flex; gap:6px; flex-wrap:wrap; justify-content:flex-end; }
+  #b-table td.bdet { background:#fafaf9; white-space:normal; padding:12px 16px; }
+  #b-table td.bdet th, #b-table td.bdet td { white-space:normal; }
+  #t-batches .tablewrap { overflow-x:hidden; }
   /* 結算卡片 */
   #t-set { max-width:920px; }
   .kpis { display:grid; grid-template-columns:repeat(auto-fill,minmax(230px,1fr)); gap:12px; margin-bottom:12px; }
@@ -672,22 +679,23 @@ function delOrder(id) {
 
 /* ---------- 集運單 ---------- */
 function renderBatches() {
-  var h = '<tr><th>集運單</th><th>日期</th><th class="n">計費（kg × ¥/kg ＝ 運費¥）</th><th class="n">匯率</th><th class="n">運費台幣</th><th class="n">品項（缺重量）</th><th class="n">重量合計（差）</th><th class="n">物品台幣</th><th class="n">集運單總額</th><th>貨態</th><th>收件人 / 地址</th><th>備註</th><th></th></tr>';
+  var h = '<tr><th>集運單</th><th class="n">計費（kg × ¥/kg ＝ 運費¥）</th><th class="n">品項／重量</th><th class="n">物品台幣</th><th class="n">總額</th><th>貨態</th><th>收件／備註</th><th></th></tr>';
   var hideDone = $('b-hidedone') ? $('b-hidedone').checked : true, hidden = 0;
   D.batches.slice().reverse().forEach(function (b) {
     if (hideDone && batchDone(b)) { hidden++; return; }
     var bad = typeof b.wdiff === 'number' && Math.abs(b.wdiff) > 2;
     var miss = D.orders.filter(function (o) { return o.batch === b.name && noW(o); }).length;
-    h += '<tr><td><a href="#" data-b="' + esc(b.name) + '" onclick="toggleBatch(this.dataset.b);return false">' + (OPEN[b.name] ? '▼ ' : '▶ ') + esc(b.name) + '</a></td><td>' + esc(b.date) + '</td>' +
-      '<td class="n">' + fmt(b.kg) + ' × ' + fmt(b.unit) + ' ＝ <b>' + fmt(b.cny) + '</b></td><td class="n">' + fmt(b.rate, 3) + '</td><td class="n">' + fmt(b.twd) + '</td>' +
-      '<td class="n">' + fmt(b.count, 0) + (miss ? ' <b class="bad">(缺' + miss + ')</b>' : '') + '</td>' +
-      '<td class="n">' + fmt(b.wsum, 1) + ' <span' + (bad ? ' class="warn" style="background:#fff3bf;padding:0 4px"' : ' class="muted"') + '>(' + fmt(b.wdiff, 1) + ')</span></td>' +
+    var p = b.link ? parseLink(b.link) : null;
+    h += '<tr><td><a href="#" class="bn" data-b="' + esc(b.name) + '" onclick="toggleBatch(this.dataset.b);return false">' + (OPEN[b.name] ? '▾ ' : '▸ ') + esc(b.name) + '</a><div class="muted sm2">' + esc(b.date) + '</div></td>' +
+      '<td class="n">' + fmt(b.kg) + ' × ' + fmt(b.unit) + ' ＝ <b>¥' + fmt(b.cny) + '</b><div class="muted sm2">× ' + fmt(b.rate, 3) + ' ＝ NT$ ' + fmt(b.twd) + '</div></td>' +
+      '<td class="n">' + fmt(b.count, 0) + ' 件' + (miss ? ' <b class="bad">缺' + miss + '</b>' : '') + '<div class="sm2"><span class="muted">' + fmt(b.wsum, 1) + ' kg</span> <span' + (bad ? ' class="warn" style="background:#fffbeb;padding:0 4px;border-radius:4px"' : ' class="muted"') + '>(' + fmt(b.wdiff, 1) + ')</span></div></td>' +
       '<td class="n">' + fmt(b.itemTwd) + '</td><td class="n"><b>' + fmt(b.total) + '</b></td>' +
-      '<td>' + (b.link ? (function () { var p = parseLink(b.link); return '<a href="' + esc(b.link) + '" target="_blank" rel="noopener">查貨態 📦</a>' + (p.car ? '<div class="muted" style="font-size:12px">' + esc(p.car) + ' ' + esc(p.num) + '</div>' : ''); })() : '') + '</td><td class="wrap">' + esc(b.rcp) + (b.rcp && b.addr ? '<br>' : '') + esc(b.addr) + '</td><td class="wrap muted">' + esc(b.note) + '</td>' +
-      '<td><button class="btn sm" data-b="' + esc(b.name) + '" onclick="batchShip(this.dataset.b)">📋 出貨資訊</button> <button class="btn sm" onclick="openBatch(\'' + esc(b.name) + '\')">編輯</button> <button class="btn sm danger" onclick="delBatch(\'' + esc(b.name) + '\')">刪</button></td></tr>';
-    if (OPEN[b.name]) h += '<tr><td colspan="13" style="background:#fafbfc;white-space:normal">' + batchDetail(b) + '</td></tr>';
+      '<td>' + (b.link ? '<a href="' + esc(b.link) + '" target="_blank" rel="noopener">查貨態 ↗</a>' + (p && p.car ? '<div class="muted sm2">' + esc(p.car) + ' ' + esc(p.num) + '</div>' : '') : '<span class="muted">-</span>') + '</td>' +
+      '<td class="wrap">' + esc(b.rcp) + (b.addr ? '<div class="muted sm2">' + esc(b.addr) + '</div>' : '') + (b.note ? '<div class="muted sm2">備註：' + esc(b.note) + '</div>' : '') + '</td>' +
+      '<td><div class="acts"><button class="btn sm" data-b="' + esc(b.name) + '" onclick="batchShip(this.dataset.b)">出貨資訊</button><button class="btn sm" onclick="openBatch(\'' + esc(b.name) + '\')">編輯</button><button class="btn sm danger" onclick="delBatch(\'' + esc(b.name) + '\')">刪</button></div></td></tr>';
+    if (OPEN[b.name]) h += '<tr><td colspan="8" class="bdet">' + batchDetail(b) + '</td></tr>';
   });
-  if (hidden) h += '<tr><td colspan="13" class="muted" style="text-align:center">已隱藏 ' + hidden + ' 張已完成的集運單（取消上方勾選即可顯示）</td></tr>';
+  if (hidden) h += '<tr><td colspan="8" class="muted" style="text-align:center">已隱藏 ' + hidden + ' 張已完成的集運單（取消上方勾選即可顯示）</td></tr>';
   $('b-table').innerHTML = h;
 }
 function batchDone(b) {
