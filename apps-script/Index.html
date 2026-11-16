@@ -6,138 +6,210 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>淘寶代購管理</title>
 <style>
-  :root { --bg:#f6f7f9; --card:#fff; --line:#e3e6ea; --text:#1f2933; --sub:#6b7785; --accent:#e8590c; --accent-d:#c24a08; --ok:#2b8a3e; --bad:#c92a2a; --warn:#f08c00; }
+  :root {
+    --bg:#f5f5f4; --card:#fff; --line:#e7e5e4; --line2:#f0efee; --text:#1c1917; --sub:#78716c; --sub2:#a8a29e;
+    --accent:#ea580c; --accent-d:#c2410c; --accent-s:#fff4ec; --ok:#15803d; --ok-s:#ecfdf3; --bad:#dc2626; --bad-s:#fef2f2; --warn:#d97706; --warn-s:#fffbeb;
+    --r:14px; --rs:10px; --sh:0 1px 2px rgba(28,25,23,.04),0 1px 8px rgba(28,25,23,.04);
+  }
   * { box-sizing:border-box; }
-  body { margin:0; font-family:-apple-system,"Noto Sans TC","PingFang TC","Microsoft JhengHei",sans-serif; background:var(--bg); color:var(--text); font-size:16px; }
-  header { position:sticky; top:0; z-index:20; background:var(--card); border-bottom:1px solid var(--line); padding:8px 14px; display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
-  header h1 { font-size:18px; margin:0; }
-  nav { display:flex; gap:4px; flex:1; flex-wrap:wrap; }
-  nav button { border:0; background:transparent; padding:8px 16px; border-radius:6px; cursor:pointer; font-size:16px; color:var(--sub); }
-  nav button.on { background:#fff0e6; color:var(--accent-d); font-weight:600; }
-  main { padding:14px 16px; max-width:none; margin:0 auto; }
-  .card { background:var(--card); border:1px solid var(--line); border-radius:8px; padding:12px; margin-bottom:14px; }
-  .bar { display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-bottom:10px; }
-  input, select, textarea { font:inherit; padding:8px 10px; border:1px solid #cfd5dc; border-radius:6px; background:#fff; max-width:100%; }
-  input:focus, select:focus, textarea:focus { outline:2px solid #ffd8bf; border-color:var(--accent); }
-  button.btn { font:inherit; border:1px solid #cfd5dc; background:#fff; padding:8px 16px; border-radius:6px; cursor:pointer; }
-  button.btn:hover { background:#f1f3f5; }
+  html { -webkit-text-size-adjust:100%; }
+  body { margin:0; font-family:-apple-system,BlinkMacSystemFont,"PingFang TC","Noto Sans TC","Microsoft JhengHei",sans-serif; background:var(--bg); color:var(--text); font-size:15px; line-height:1.5; }
+  a { color:#2563eb; text-decoration:none; } a:hover { text-decoration:underline; }
+  .hide { display:none !important; }
+  .muted { color:var(--sub); } .ok { color:var(--ok); } .bad { color:var(--bad); } .warn { color:var(--warn); }
+
+  /* 頂部 */
+  header { position:sticky; top:0; z-index:30; background:rgba(255,255,255,.92); backdrop-filter:saturate(1.6) blur(10px); -webkit-backdrop-filter:saturate(1.6) blur(10px); border-bottom:1px solid var(--line); }
+  .top { max-width:1440px; margin:0 auto; padding:10px 20px 0; display:flex; align-items:center; gap:10px; }
+  .top h1 { font-size:17px; font-weight:700; margin:0; display:flex; align-items:center; gap:10px; letter-spacing:.3px; }
+  .top .sp { flex:1; }
+  .ibtn { width:38px; height:38px; border-radius:50%; border:1px solid var(--line); background:#fff; color:var(--sub); font-size:18px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; }
+  .ibtn:hover { color:var(--text); background:#fafaf9; }
+  nav { max-width:1440px; margin:0 auto; padding:0 12px; display:flex; gap:2px; overflow-x:auto; scrollbar-width:none; }
+  nav::-webkit-scrollbar { display:none; }
+  nav button { flex:0 0 auto; border:0; background:none; font:inherit; font-size:15px; color:var(--sub); padding:12px 14px 11px; cursor:pointer; border-bottom:2px solid transparent; white-space:nowrap; }
+  nav button:hover { color:var(--text); }
+  nav button.on { color:var(--text); font-weight:600; border-bottom-color:var(--accent); }
+
+  main { max-width:1440px; margin:0 auto; padding:20px 20px 120px; }
+  .phead { display:flex; align-items:flex-end; gap:12px; flex-wrap:wrap; margin:4px 0 14px; }
+  .phead h2 { font-size:22px; margin:0; font-weight:700; }
+  .phead .desc { color:var(--sub); font-size:13px; margin-top:2px; }
+  .phead .pact { margin-left:auto; display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:var(--r); padding:16px; margin-bottom:16px; box-shadow:var(--sh); }
+  .ch { display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:12px; }
+  .ch b { font-size:16px; }
+  .ch .muted { font-size:13px; }
+  .ch .sp { flex:1; }
+  .note { background:var(--accent-s); border:1px solid #fed7aa; color:#7c2d12; border-radius:var(--rs); padding:9px 12px; margin-bottom:12px; font-size:14px; }
+  .note:empty { display:none; }
+  .preview { grid-column:1 / -1; background:#fafaf9; border:1px solid var(--line); border-radius:var(--rs); padding:10px 12px; font-size:13px; color:#44403c; }
+  .preview:empty { display:none; }
+
+  /* 表單元件 */
+  input, select, textarea { font:inherit; color:var(--text); padding:9px 12px; border:1px solid #d6d3d1; border-radius:var(--rs); background:#fff; max-width:100%; min-height:40px; }
+  textarea { min-height:auto; }
+  select { padding-right:30px; -webkit-appearance:none; appearance:none; background:#fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1l5 5 5-5' fill='none' stroke='%2378716c' stroke-width='1.6'/%3E%3C/svg%3E") no-repeat right 11px center; }
+  input:focus, select:focus, textarea:focus { outline:3px solid #ffedd5; border-color:var(--accent); }
+  input[type=checkbox] { min-height:0; width:18px; height:18px; accent-color:var(--accent); margin:0; vertical-align:middle; }
+  button.btn { font:inherit; font-size:14px; font-weight:500; border:1px solid #d6d3d1; background:#fff; color:var(--text); padding:0 16px; height:40px; border-radius:var(--rs); cursor:pointer; white-space:nowrap; display:inline-flex; align-items:center; justify-content:center; gap:6px; }
+  button.btn:hover { background:#fafaf9; border-color:#a8a29e; }
   button.pri { background:var(--accent); border-color:var(--accent); color:#fff; }
-  button.pri:hover { background:var(--accent-d); }
+  button.pri:hover { background:var(--accent-d); border-color:var(--accent-d); }
   button.danger { color:var(--bad); }
-  button.sm { padding:3px 10px; font-size:13px; }
-  .tablewrap { overflow:auto; max-height:78vh; border:1px solid var(--line); border-radius:6px; }
-  table { border-collapse:collapse; width:100%; background:#fff; font-size:14px; }
-  th, td { padding:7px 9px; border-bottom:1px solid #eef0f2; text-align:left; white-space:nowrap; }
-  th { position:sticky; top:0; background:#f1f3f5; font-weight:600; z-index:1; }
+  button.danger:hover { background:var(--bad-s); border-color:#fca5a5; }
+  button.sm { height:30px; padding:0 10px; font-size:13px; border-radius:8px; }
+  .form { display:grid; grid-template-columns:1fr 1fr; gap:14px 16px; }
+  .form.f3 { grid-template-columns:repeat(3,1fr); }
+  .form label { display:flex; flex-direction:column; gap:6px; font-size:13px; font-weight:500; color:#57534e; min-width:0; }
+  .form label.full, .form .full { grid-column:1 / -1; }
+  .form input, .form select, .form textarea { width:100%; min-width:0; font-size:15px; font-weight:400; }
+  .form input[type=date] { -webkit-appearance:none; appearance:none; display:block; text-align:left; }
+  .form input[type=date]::-webkit-date-and-time-value { text-align:left; }
+  textarea.list { height:130px; line-height:1.6; }
+  .sec { grid-column:1 / -1; font-size:12px; font-weight:600; color:var(--sub2); letter-spacing:1px; padding-top:4px; border-top:1px solid var(--line2); margin-top:2px; padding-top:12px; }
+
+  /* 篩選列 */
+  .filters { padding:12px; }
+  .frow { display:flex; gap:8px; flex-wrap:wrap; }
+  .frow select { flex:0 1 150px; }
+  .sbox { position:relative; display:inline-flex; flex:1 1 260px; min-width:180px; }
+  .sbox::before { content:""; position:absolute; left:12px; top:50%; width:14px; height:14px; transform:translateY(-50%); background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14'%3E%3Ccircle cx='6' cy='6' r='4.8' fill='none' stroke='%23a8a29e' stroke-width='1.6'/%3E%3Cpath d='M9.6 9.6L13 13' stroke='%23a8a29e' stroke-width='1.6'/%3E%3C/svg%3E"); }
+  .sbox input { width:100%; padding-left:34px; padding-right:36px; }
+  .sbox .sx { display:none; position:absolute; right:8px; top:50%; transform:translateY(-50%); width:22px; height:22px; padding:0; border:0; border-radius:50%; background:#d6d3d1; color:#fff; font-size:12px; line-height:22px; cursor:pointer; }
+  .sbox.has .sx { display:block; }
+  .chips { display:flex; gap:6px; flex-wrap:wrap; margin-top:10px; }
+  .chip { display:inline-flex; align-items:center; gap:6px; border:1px solid var(--line); background:#fff; border-radius:999px; padding:5px 12px 5px 10px; font-size:13px; color:#57534e; cursor:pointer; user-select:none; white-space:nowrap; }
+  .chip:hover { border-color:#a8a29e; }
+  .chip input { width:15px; height:15px; }
+  .chip:has(input:checked) { background:var(--accent-s); border-color:#fdba74; color:var(--accent-d); }
+
+  /* 表格 */
+  .tablewrap { overflow:auto; max-height:76vh; background:#fff; border:1px solid var(--line); border-radius:var(--r); box-shadow:var(--sh); }
+  .card .tablewrap { box-shadow:none; border-radius:var(--rs); }
+  table { border-collapse:separate; border-spacing:0; width:100%; font-size:14px; }
+  th, td { padding:10px; border-bottom:1px solid var(--line2); text-align:left; white-space:nowrap; vertical-align:middle; }
+  th { position:sticky; top:0; background:#fafaf9; color:var(--sub); font-size:12px; font-weight:600; z-index:1; border-bottom:1px solid var(--line); }
+  tr:last-child > td { border-bottom:0; }
   td.n, th.n { text-align:right; font-variant-numeric:tabular-nums; }
   td.wrap { white-space:normal; min-width:120px; }
-  tr:hover td { background:#fffaf5; }
-  .tag { display:inline-block; padding:1px 7px; border-radius:10px; font-size:12px; background:#e9ecef; }
-  .tag.s-已下單 { background:#e7f5ff; color:#1971c2; }
-  .tag.s-在集運倉 { background:#fff3bf; color:#8a6d00; }
-  .tag.s-集運回台 { background:#e5dbff; color:#5f3dc4; }
-  .tag.s-已出貨 { background:#ffe8cc; color:#d9480f; }
-  .tag.s-已完成 { background:#d3f9d8; color:var(--ok); }
-  .dup { background:#ffe3e3; color:var(--bad); font-weight:700; }
-  .muted { color:var(--sub); }
-  .ok { color:var(--ok); } .bad { color:var(--bad); } .warn { color:var(--warn); }
-  .grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:10px; }
-  .stat { background:#fff; border:1px solid var(--line); border-radius:8px; padding:10px 12px; }
-  .stat b { display:block; font-size:22px; margin-top:2px; }
-  .modal-bg { position:fixed; inset:0; background:rgba(0,0,0,.4); display:none; align-items:flex-start; justify-content:center; padding:24px 12px; overflow:auto; z-index:50; }
+  tbody tr:hover > td, tr.dr:hover > td { background:#fcfbfa; }
+  td table { font-size:13px; }
+  td table th { position:static; }
+  .tag { display:inline-block; padding:2px 9px; border-radius:999px; font-size:12px; font-weight:500; background:#f5f5f4; color:#57534e; white-space:nowrap; }
+  .tag.s-已下單 { background:#eff6ff; color:#1d4ed8; }
+  .tag.s-已出貨 { background:#fff7ed; color:#c2410c; }
+  .tag.s-在集運倉 { background:#fefce8; color:#a16207; }
+  .tag.s-集運回台 { background:#f5f3ff; color:#6d28d9; }
+  .tag.s-已完成 { background:var(--ok-s); color:var(--ok); }
+  .wtag { display:inline-block; padding:2px 10px; border-radius:999px; color:#1c1917; font-size:13px; font-weight:500; }
+  .dup { background:var(--bad-s); color:var(--bad); font-weight:600; }
+  .ied { cursor:pointer; border-radius:6px; }
+  .ied:hover { background:var(--accent-s) !important; }
+  .pen { color:#d6d3d1; font-size:12px; margin-left:6px; }
+  .ied:hover .pen { color:var(--accent); }
+  input.ie { width:100%; min-width:90px; min-height:32px; padding:4px 8px; }
+  .mtg { display:none !important; }
+
+  /* 結算卡片 */
+  .kpis { display:grid; grid-template-columns:repeat(auto-fill,minmax(230px,1fr)); gap:12px; margin-bottom:12px; }
+  .kpi { background:#fff; border:1px solid var(--line); border-radius:var(--r); padding:14px 16px; box-shadow:var(--sh); display:flex; flex-direction:column; gap:6px; }
+  .kpi .kh { display:flex; align-items:center; justify-content:space-between; }
+  .kpi .kv { font-size:26px; font-weight:700; font-variant-numeric:tabular-nums; line-height:1.2; }
+  .kpi .kl { font-size:12px; color:var(--sub); }
+  .kpi .kr { display:flex; justify-content:space-between; font-size:13px; color:var(--sub); font-variant-numeric:tabular-nums; }
+  .kpi .kr b { color:var(--text); font-weight:500; }
+  .kpi.tot { background:#fafaf9; }
+
+  /* 多選浮動列 */
+  .bulk { position:fixed; left:50%; bottom:20px; transform:translateX(-50%); z-index:40; width:min(920px, calc(100vw - 24px)); background:#1c1917; color:#fff; border-radius:16px; padding:10px 12px; display:flex; gap:8px; align-items:center; flex-wrap:wrap; box-shadow:0 10px 30px rgba(0,0,0,.25); }
+  .bulk select { min-height:36px; height:36px; padding-top:0; padding-bottom:0; border-color:#44403c; background-color:#292524; color:#fff; }
+  .bulk button.btn { height:36px; background:#292524; border-color:#44403c; color:#fff; }
+  .bulk button.pri { background:var(--accent); border-color:var(--accent); }
+
+  /* 視窗 */
+  .modal-bg { position:fixed; inset:0; background:rgba(28,25,23,.45); display:none; align-items:center; justify-content:center; padding:24px; z-index:50; }
   .modal-bg.on { display:flex; }
-  .modal { background:#fff; border-radius:10px; padding:20px; width:100%; max-width:760px; }
-  .modal h3 { margin:0 0 10px; }
-  .form { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
-  .form label { display:flex; flex-direction:column; gap:4px; font-size:13px; color:var(--sub); }
-  .form label.full { grid-column:1 / -1; }
-  .form input, .form select, .form textarea { width:100%; min-width:0; color:var(--text); font-size:16px; }
-  .form input[type=date] { -webkit-appearance:none; appearance:none; min-height:42px; line-height:1.2; text-align:left; display:block; }
-  .form input[type=date]::-webkit-date-and-time-value { text-align:left; min-height:1.2em; }
-  .preview { grid-column:1 / -1; background:#fff8f0; border:1px dashed #ffc078; border-radius:6px; padding:8px 10px; font-size:13px; }
-  .actions { display:flex; gap:8px; justify-content:flex-end; margin-top:12px; align-items:center; }
-  #toast { position:fixed; bottom:18px; left:50%; transform:translateX(-50%); background:#212529; color:#fff; padding:8px 16px; border-radius:20px; display:none; z-index:130; max-width:90vw; }
+  .modal { background:#fff; border-radius:18px; padding:22px 22px 0; width:100%; max-width:760px; max-height:calc(100vh - 48px); overflow:auto; box-shadow:0 20px 50px rgba(0,0,0,.2); }
+  .modal h3 { margin:0 0 16px; font-size:19px; }
+  .actions { position:sticky; bottom:0; background:#fff; display:flex; gap:8px; justify-content:flex-end; align-items:center; margin:18px -22px 0; padding:14px 22px 18px; border-top:1px solid var(--line2); }
+  .actions label { display:flex; align-items:center; gap:6px; margin-right:auto; font-size:14px; }
+  .modal .bar { display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-bottom:10px; }
+  .modal .bar label { display:flex; align-items:center; gap:6px; font-size:14px; }
+
+  #toast { position:fixed; bottom:24px; left:50%; transform:translateX(-50%); background:#1c1917; color:#fff; padding:10px 18px; border-radius:999px; display:none; z-index:130; max-width:90vw; font-size:14px; box-shadow:0 8px 24px rgba(0,0,0,.2); }
   #toast.err { background:var(--bad); }
   #mask { position:fixed; inset:0; background:rgba(255,255,255,.55); display:none; align-items:center; justify-content:center; z-index:120; cursor:wait; }
   #mask.on { display:flex; }
-  #mask .mbox { background:#212529; color:#fff; padding:12px 22px; border-radius:10px; font-size:16px; display:flex; align-items:center; gap:10px; box-shadow:0 4px 18px rgba(0,0,0,.25); }
+  #mask .mbox { background:#1c1917; color:#fff; padding:12px 22px; border-radius:14px; display:flex; align-items:center; gap:10px; box-shadow:0 8px 24px rgba(0,0,0,.25); }
   .spin { width:16px; height:16px; border:3px solid #ffffff55; border-top-color:#fff; border-radius:50%; animation:sp .8s linear infinite; }
   @keyframes sp { to { transform:rotate(360deg); } }
   #loading { position:fixed; top:0; left:0; right:0; height:3px; background:var(--accent); display:none; z-index:100; animation:ld 1s infinite; }
   @keyframes ld { 0%{transform:scaleX(0);transform-origin:left} 50%{transform:scaleX(1);transform-origin:left} 51%{transform-origin:right} 100%{transform:scaleX(0);transform-origin:right} }
-  .hide { display:none !important; }
-  .mtg { display:none; }
-    .ied { cursor:pointer; }
-  .ied:hover { background:#fff7ed; }
-  .wtag { display:inline-block; padding:1px 9px; border-radius:10px; color:#212529; }
-  .pen { color:#adb5bd; font-size:13px; margin-left:6px; }
-  input.ie { width:100%; min-width:90px; }
-  .sbox { position:relative; display:inline-flex; flex:1 1 200px; min-width:180px; }
-  .sbox input { width:100%; padding-right:36px; }
-  .sbox .sx { display:none; position:absolute; right:8px; top:50%; transform:translateY(-50%); width:24px; height:24px; padding:0; border:0; border-radius:50%; background:#ced4da; color:#fff; font-size:13px; line-height:24px; cursor:pointer; }
-  .sbox.has .sx { display:block; }
-  textarea.list { height:120px; }
-  a { color:#1971c2; text-decoration:none; } a:hover { text-decoration:underline; }
+
+  /* ---------- 手機 ---------- */
   @media (max-width:760px) {
-    body { font-size:15px; }
-    header { padding:6px 10px; gap:6px; }
-    header h1 { font-size:18px; flex:1; order:1; }
-    header > button.btn { order:2; min-height:40px; padding:8px 12px; }
-    header nav { order:3; flex:0 0 100%; flex-wrap:nowrap; overflow-x:auto; gap:2px; -webkit-overflow-scrolling:touch; }
-    header nav button { flex:0 0 auto; white-space:nowrap; }
-    nav button { padding:8px 10px; font-size:15px; }
-    main { padding:8px; }
-    .card { padding:8px; }
-    .form { grid-template-columns:1fr; }
-    .modal-bg { padding:8px 6px; }
-    .modal { padding:14px; }
-    .bar input, .bar select { flex:1 1 130px; min-width:0; }
-    button.btn, button.sm { padding:8px 12px; font-size:14px; }
-    input[type=checkbox] { width:22px; height:22px; }
-    .tablewrap { max-height:none; overflow:visible; border:0; }
-    table, tbody { display:block; width:100%; background:transparent; }
+    body { font-size:16px; }
+    .top { padding:8px 14px 0; }
+    nav { padding:0 6px; }
+    nav button { font-size:16px; padding:11px 12px 10px; }
+    main { padding:14px 12px 140px; }
+    .phead h2 { font-size:22px; }
+    .phead .pact { margin-left:0; width:100%; }
+    .phead .pact button.btn { flex:1; height:46px; font-size:16px; }
+    .card { padding:14px; border-radius:16px; }
+    input, select, textarea { font-size:16px; min-height:46px; }
+    button.btn { height:44px; font-size:16px; }
+    button.sm { height:38px; font-size:15px; padding:0 12px; }
+    .frow select { flex:1 1 30%; min-width:0; }
+    .sbox { flex:1 1 100%; }
+    .chip { font-size:14px; padding:7px 12px 7px 10px; }
+    .form, .form.f3 { grid-template-columns:1fr; }
+    .form label { font-size:14px; }
+    .form input, .form select, .form textarea { font-size:16px; }
+    .kpis { grid-template-columns:1fr 1fr; gap:10px; }
+    .kpi { padding:12px; }
+    .kpi .kv { font-size:22px; }
+    .kpi .kr { font-size:13px; }
+    .kpi button.btn { height:38px; font-size:14px; }
+
+    .modal-bg { align-items:flex-end; padding:0; }
+    .modal { border-radius:20px 20px 0 0; max-height:92vh; padding:10px 16px 0; max-width:none; }
+    .modal::before { content:""; display:block; width:40px; height:5px; border-radius:3px; background:#e7e5e4; margin:0 auto 12px; }
+    .modal h3 { font-size:20px; }
+    .actions { margin:16px -16px 0; padding:12px 16px calc(14px + env(safe-area-inset-bottom)); flex-wrap:wrap; }
+    .actions button { flex:1; height:48px; }
+    .actions label { flex:0 0 100%; }
+    .bulk { bottom:12px; border-radius:14px; }
+    .bulk select { flex:1 1 40%; }
+
+    /* 表格 → 卡片 */
+    .tablewrap { max-height:none; overflow:visible; border:0; background:transparent; box-shadow:none; }
+    .card .tablewrap { border-radius:0; }
+    table, tbody { display:block; width:100%; }
     tr.hr { display:none; }
-    tr.dr { display:block; background:#fff; border:1px solid var(--line); border-radius:8px; padding:6px 8px; margin:0 0 10px; }
-    td { display:flex; justify-content:space-between; align-items:center; gap:12px; white-space:normal; text-align:right; border:0; padding:4px 2px; min-width:0; }
-    td::before { content:attr(data-label); flex:0 0 auto; text-align:left; color:var(--sub); font-size:12px; }
+    tr.dr { display:block; background:#fff; border:1px solid var(--line); border-radius:16px; padding:8px 14px; margin:0 0 10px; box-shadow:var(--sh); }
+    .card tr.dr { box-shadow:none; background:#fafaf9; }
+    td { display:flex; justify-content:space-between; align-items:center; gap:12px; white-space:normal; text-align:right; padding:8px 0; border-bottom:1px solid var(--line2); min-width:0; overflow-wrap:anywhere; font-size:16px; }
+    tr.dr > td:last-child { border-bottom:0; }
+    td::before { content:attr(data-label); flex:0 0 auto; text-align:left; color:var(--sub); font-size:14px; }
     td[data-label=""]::before, td[colspan]::before { display:none; }
-    td[colspan] { display:block; text-align:left; padding:2px 0; }
-    td[colspan] table { margin:4px 0; }
-    td[colspan] tr.dr { margin:0 0 6px; padding:4px 8px; }
-    td { overflow-wrap:anywhere; }
+    td[data-label=""] { justify-content:flex-start; flex-wrap:wrap; gap:8px; }
+    td[colspan] { display:block; text-align:left; }
+    td[colspan] tr.dr { padding:6px 12px; background:#fafaf9; box-shadow:none; }
     td.wrap { min-width:0; }
-    td.n { text-align:right; }
-    td[data-label=""] { justify-content:flex-start; }
-    tr:hover td { background:transparent; }
-    .mtg { display:inline-block; }
+    td.n b { font-size:18px; }
+    tbody tr:hover > td, tr.dr:hover > td { background:transparent; }
+    .tag { font-size:14px; padding:3px 11px; }
+    .mtg { display:inline-flex !important; }
     tr.dr:not([data-open]) td.mn { display:none; }
-    td[data-label=""] { flex-wrap:wrap; gap:6px; }
-    .form label { min-width:0; }
-    /* 手機版：字放大、卡片化、品名當標題 */
-    body { font-size:17px; }
-    input, select, textarea { font-size:17px; padding:11px 12px; border-radius:10px; }
-    .bar select, .bar input:not([type=checkbox]) { min-height:46px; }
-    .bar label { font-size:16px; display:flex; align-items:center; gap:8px; min-height:40px; white-space:nowrap; }
-    .bar label input[type=checkbox] { margin:0; flex:0 0 auto; }
-    button.btn, button.sm { font-size:16px; padding:11px 16px; min-height:44px; border-radius:10px; }
-    button.sm { padding:9px 14px; min-height:40px; }
-    nav button { font-size:16px; padding:10px 12px; }
-    .modal h3 { font-size:21px; }
-    .modal { padding:16px; border-radius:14px; }
-    .actions button { flex:1; }
-    .muted { font-size:15px; }
-    tr.dr { border-radius:14px; padding:10px 14px; box-shadow:0 1px 4px rgba(0,0,0,.06); }
-    td { font-size:17px; padding:7px 0; border-bottom:1px solid #f1f3f5; }
-    td::before { font-size:15px; color:var(--sub); }
-    tr.dr td:last-child { border-bottom:0; }
-    td.n b { font-size:19px; }
-    .tag { font-size:15px; padding:3px 12px; border-radius:12px; }
+    td.ied { justify-content:flex-end; }
+    td.ied::before { margin-right:auto; }
     tr[data-k=o] { position:relative; display:flex; flex-direction:column; }
-    tr[data-k=o] td.ttl { order:-1; display:block; text-align:left; font-size:19px; font-weight:700; line-height:1.4; padding:2px 44px 8px 0; border-bottom:1px solid #e9ecef; }
-    tr[data-k=o] td.ttl::before { display:none; }
-    tr[data-k=o] td.ck { position:absolute; top:10px; right:10px; padding:0; border:0; z-index:2; }
-    tr[data-k=o] td.ck::before { display:none; }
-    tr[data-k=o] td.ck input { width:26px; height:26px; }
+    tr[data-k=o] td.ttl { order:-1; display:block; text-align:left; font-size:18px; font-weight:700; line-height:1.4; padding:4px 44px 10px 0; }
+    tr[data-k=o] td.ttl::before, tr[data-k=o] td.ck::before { display:none; }
+    tr[data-k=o] td.ck { position:absolute; top:12px; right:12px; padding:0; border:0; z-index:2; }
+    tr[data-k=o] td.ck input { width:24px; height:24px; }
   }
 </style>
 </head>
@@ -145,7 +217,11 @@
 <div id="loading"></div>
 <div id="mask"><div class="mbox"><span class="spin"></span>處理中，請稍候…</div></div>
 <header>
-  <h1><svg width="26" height="26" style="vertical-align:-6px;margin-right:6px" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">  <defs>    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">      <stop offset="0" stop-color="#ff9a4d"/><stop offset="1" stop-color="#e8590c"/>    </linearGradient>    <linearGradient id="box" x1="0" y1="0" x2="0" y2="1">      <stop offset="0" stop-color="#ffffff"/><stop offset="1" stop-color="#ffe8d6"/>    </linearGradient>  </defs>  <rect width="512" height="512" rx="112" fill="url(#bg)"/>  <!-- 包裹 -->  <path d="M96 190 L256 118 L416 190 L416 372 L256 444 L96 372 Z" fill="url(#box)"/>  <path d="M96 190 L256 262 L416 190" fill="none" stroke="#f4b183" stroke-width="10" stroke-linejoin="round"/>  <path d="M256 262 L256 444" stroke="#f4b183" stroke-width="10"/>  <!-- 封箱膠帶 -->  <path d="M196 144 L356 216 L356 290 L196 218 Z" fill="#e8590c" opacity=".92"/>  <!-- 硬幣 ¥ -->  <circle cx="368" cy="352" r="86" fill="#fff" stroke="#e8590c" stroke-width="14"/>  <text x="368" y="382" font-family="Arial, Helvetica, sans-serif" font-size="96" font-weight="700" text-anchor="middle" fill="#e8590c">¥</text></svg>淘寶代購管理</h1>
+  <div class="top">
+    <h1><svg width="30" height="30" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">  <defs>    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">      <stop offset="0" stop-color="#ff9a4d"/><stop offset="1" stop-color="#e8590c"/>    </linearGradient>    <linearGradient id="box" x1="0" y1="0" x2="0" y2="1">      <stop offset="0" stop-color="#ffffff"/><stop offset="1" stop-color="#ffe8d6"/>    </linearGradient>  </defs>  <rect width="512" height="512" rx="112" fill="url(#bg)"/>  <!-- 包裹 -->  <path d="M96 190 L256 118 L416 190 L416 372 L256 444 L96 372 Z" fill="url(#box)"/>  <path d="M96 190 L256 262 L416 190" fill="none" stroke="#f4b183" stroke-width="10" stroke-linejoin="round"/>  <path d="M256 262 L256 444" stroke="#f4b183" stroke-width="10"/>  <!-- 封箱膠帶 -->  <path d="M196 144 L356 216 L356 290 L196 218 Z" fill="#e8590c" opacity=".92"/>  <!-- 硬幣 ¥ -->  <circle cx="368" cy="352" r="86" fill="#fff" stroke="#e8590c" stroke-width="14"/>  <text x="368" y="382" font-family="Arial, Helvetica, sans-serif" font-size="96" font-weight="700" text-anchor="middle" fill="#e8590c">¥</text></svg>淘寶代購管理</h1>
+    <span class="sp"></span>
+    <button class="ibtn" onclick="load()" title="重新整理" aria-label="重新整理">↻</button>
+  </div>
   <nav id="nav">
     <button data-t="orders" class="on">訂單</button>
     <button data-t="batches">集運單</button>
@@ -153,99 +229,104 @@
     <button data-t="pay">付款紀錄</button>
     <button data-t="set">設定</button>
   </nav>
-  <button class="btn" onclick="load()">↻ 重新整理</button>
 </header>
 
 <main>
   <!-- 訂單 -->
   <section id="t-orders">
-    <div class="card">
-      <div class="bar">
-        <span class="sbox"><input id="f-q" placeholder="搜尋品名 / 運單 / 備註" oninput="renderOrders()"><button type="button" class="sx" aria-label="清除搜尋" onclick="$('f-q').value='';renderOrders();$('f-q').focus()">✕</button></span>
+    <div class="phead">
+      <div><h2>訂單</h2><div class="desc" id="o-sum"></div></div>
+      <div class="pact"><button class="btn" onclick="openWeights()">補重量</button><button class="btn pri" onclick="openOrder()">＋ 新增訂單</button></div>
+    </div>
+    <div class="note" id="o-pending"></div>
+    <div class="card filters">
+      <div class="frow">
+        <span class="sbox"><input id="f-q" placeholder="搜尋品名、運單、備註" oninput="renderOrders()"><button type="button" class="sx" aria-label="清除搜尋" onclick="$('f-q').value='';renderOrders();$('f-q').focus()">✕</button></span>
         <select id="f-status" onchange="statusChanged()"></select>
         <select id="f-who" onchange="renderOrders()"></select>
         <select id="f-batch" onchange="renderOrders()"></select>
-        <label><input type="checkbox" id="f-done" onchange="doneToggle()"> 載入已完成資料</label>
-        <label><input type="checkbox" id="f-dup" onchange="renderOrders()"> 只看重複運單</label>
-        <label><input type="checkbox" id="f-nw" onchange="renderOrders()"> 只看未填重量</label>
-        <label><input type="checkbox" id="f-inc" onchange="renderOrders()"> 只看資料不完整</label>
-        <span style="flex:1"></span>
-        <button class="btn" onclick="openWeights()">⚖ 補重量</button>
-        <button class="btn pri" onclick="openOrder()">＋ 新增訂單</button>
       </div>
-      <div id="o-pending" style="margin-bottom:8px"></div>
-      <div class="bar hide" id="bulk" style="background:#fff8f0;padding:6px 8px;border-radius:6px">已選 <b id="bulk-n">0</b> 筆　<button class="btn pri" onclick="openBatchFromSel()">📦 建立集運單</button><select id="bulk-batch"></select><select id="bulk-status"></select><button class="btn pri" onclick="bulkApply()">套用</button><button class="btn" onclick="clearSel()">取消選取</button></div>
-      <div class="muted" id="o-sum" style="margin-bottom:8px"></div>
-      <div class="tablewrap"><table id="o-table"></table></div>
+      <div class="chips">
+        <label class="chip"><input type="checkbox" id="f-nw" onchange="renderOrders()"> 未填重量</label>
+        <label class="chip"><input type="checkbox" id="f-inc" onchange="renderOrders()"> 資料不完整</label>
+        <label class="chip"><input type="checkbox" id="f-dup" onchange="renderOrders()"> 重複運單</label>
+        <label class="chip"><input type="checkbox" id="f-done" onchange="doneToggle()"> 載入已完成</label>
+      </div>
     </div>
+    <div class="tablewrap"><table id="o-table"></table></div>
+    <div class="bulk hide" id="bulk">已選 <b id="bulk-n">0</b> 筆<button class="btn pri" onclick="openBatchFromSel()">建立集運單</button><select id="bulk-batch"></select><select id="bulk-status"></select><button class="btn" onclick="bulkApply()">套用</button><button class="btn" onclick="clearSel()">取消</button></div>
   </section>
 
   <!-- 集運單 -->
   <section id="t-batches" class="hide">
-    <div class="card">
-      <div class="bar"><b>集運單</b><span class="muted">（重量差超過 ±2kg 會標橘色，通常是漏填或填錯品項重量）</span><span style="flex:1"></span>
-        <label style="margin-right:10px"><input type="checkbox" id="b-hidedone" checked onchange="renderBatches()"> 隱藏已完成</label>
-        <button class="btn pri" onclick="openBatch()">＋ 新增集運單</button></div>
-      <div class="tablewrap"><table id="b-table"></table></div>
+    <div class="phead">
+      <div><h2>集運單</h2><div class="desc">重量差超過 ±2kg 會標橘色，通常是漏填或填錯品項重量</div></div>
+      <div class="pact"><label class="chip"><input type="checkbox" id="b-hidedone" checked onchange="renderBatches()"> 隱藏已完成</label><button class="btn pri" onclick="openBatch()">＋ 新增集運單</button></div>
     </div>
+    <div class="tablewrap"><table id="b-table"></table></div>
   </section>
 
   <!-- 結算 -->
   <section id="t-settle" class="hide">
-    <div class="card"><b>各人應付</b>
-      <div class="muted" style="margin:4px 0 8px">應付只計入「已集運」的訂單（運費已分攤）；尚未集運的商品列在「待出貨」，運費還沒算進去。</div>
-      <div class="tablewrap"><table id="s-table"></table></div>
-      <div id="s-check" style="margin-top:8px"></div>
-    </div>
-    <div class="card"><b>各批次未付</b>
-      <div class="muted" style="margin:4px 0 8px">收了但還沒登記的，按「已收」就會補登一筆付款（可改金額）。小額差異也可以這樣歸零。</div>
+    <div class="phead"><div><h2>結算</h2><div class="desc">應付只算已集運的訂單；還沒集運的商品列在「待出貨」，運費尚未計入</div></div></div>
+    <div class="kpis" id="s-cards"></div>
+    <div id="s-check" style="margin-bottom:16px"></div>
+    <div class="card">
+      <div class="ch"><b>各批次未付</b><span class="muted">收了但還沒登記的按「已收」補登，金額可改；小額差異也能這樣歸零</span></div>
       <div class="tablewrap"><table id="u-table"></table></div>
     </div>
-    <div class="card"><b>集運單 × 人員分攤（台幣）</b>
-      <div class="tablewrap" style="margin-top:8px"><table id="m-table"></table></div>
+    <div class="card">
+      <div class="ch"><b>集運單 × 人員分攤</b><span class="muted">台幣</span></div>
+      <div class="tablewrap"><table id="m-table"></table></div>
     </div>
   </section>
 
   <!-- 付款 -->
   <section id="t-pay" class="hide">
+    <div class="phead"><div><h2>付款紀錄</h2></div></div>
     <div class="card">
-      <b>登記付款</b>
-      <div class="bar" style="margin-top:8px">
-        <input type="date" id="p-date">
-        <select id="p-who"></select>
-        <input type="number" id="p-amt" placeholder="金額(台)" step="1" style="width:110px">
-        <select id="p-method"></select>
-        <select id="p-batch"></select>
-        <input id="p-note" placeholder="備註" style="min-width:140px">
-        <button class="btn pri" onclick="addPay()">登記</button>
+      <div class="ch"><b>登記付款</b></div>
+      <div class="form f3">
+        <label>日期<input type="date" id="p-date"></label>
+        <label>付款人<select id="p-who"></select></label>
+        <label>金額（台幣）<input type="number" id="p-amt" step="1" inputmode="numeric"></label>
+        <label>方式<select id="p-method"></select></label>
+        <label>對應集運單<select id="p-batch"></select></label>
+        <label>備註<input id="p-note"></label>
+        <div class="full" style="display:flex;justify-content:flex-end"><button class="btn pri" onclick="addPay()">登記付款</button></div>
       </div>
     </div>
     <div class="card">
-      <div class="bar"><b>付款紀錄</b><select id="p-filter" onchange="renderPay()"></select></div>
+      <div class="ch"><b>紀錄</b><span class="sp"></span><select id="p-filter" onchange="renderPay()"></select></div>
       <div class="tablewrap"><table id="p-table"></table></div>
     </div>
   </section>
 
   <!-- 設定 -->
   <section id="t-set" class="hide">
-    <div class="card" style="max-width:640px">
-      <b>費率與清單</b>
-      <div class="form" style="margin-top:10px">
-        <label>淘寶交易手續費率（0.03 = 3%）<input type="number" id="s-fee" step="0.001"></label>
+    <div class="phead"><div><h2>設定</h2><div class="desc">費率只影響之後新增的訂單與集運單，舊資料保留當時的費率</div></div>
+      <div class="pact"><button class="btn pri" onclick="saveSet()">儲存設定</button></div></div>
+    <div class="card" style="max-width:920px">
+      <div class="ch"><b>費率與匯率</b></div>
+      <div class="form f3">
+        <label>淘寶手續費率（0.03 = 3%）<input type="number" id="s-fee" step="0.001"></label>
         <label>刷卡手續費率<input type="number" id="s-card" step="0.001"></label>
         <label>刷卡回饋率（預設）<input type="number" id="s-reward" step="0.001"></label>
+        <label>匯率來源（臺銀牌告）<select id="s-rtype"></select></label>
+        <label>預設匯率（取不到時用）<input type="number" id="s-defrate" step="0.001" inputmode="decimal"></label>
         <label>代墊人（收款人）<select id="s-payer"></select></label>
-        <label>匯率來源（臺灣銀行牌告，人民幣）<select id="s-rtype"></select></label>
-        <label>預設匯率（取不到牌告時使用）<input type="number" id="s-defrate" step="0.001" inputmode="decimal"></label>
-        <label>人員（一行一個，最多 8）<textarea class="list" id="s-people"></textarea></label>
-        <label>收件人（姓名 電話，一行一個）<textarea class="list" id="s-rcps"></textarea></label>
-        <label>收件地址（一行一個）<textarea class="list" id="s-addrs"></textarea></label>
-        <label>集運／物流公司（一行一個：名稱|查詢網址，單號位置用 {num}）<textarea class="list" id="s-carriers"></textarea></label>
-        <label>狀態（一行一個，最多 8）<textarea class="list" id="s-statuses"></textarea></label>
-        <label>付款方式（一行一個，最多 8）<textarea class="list" id="s-methods"></textarea></label>
       </div>
-      <div class="actions"><button class="btn pri" onclick="saveSet()">儲存設定</button></div>
-      <div class="muted" style="margin-top:8px">費率只影響「之後新增」的訂單與集運單；已建立的資料會保留當時的費率，不會被重算。</div>
+    </div>
+    <div class="card" style="max-width:920px">
+      <div class="ch"><b>清單</b><span class="muted">一行一個</span></div>
+      <div class="form">
+        <label>人員（最多 8）<textarea class="list" id="s-people"></textarea></label>
+        <label>狀態（最多 8）<textarea class="list" id="s-statuses"></textarea></label>
+        <label>付款方式（最多 8）<textarea class="list" id="s-methods"></textarea></label>
+        <label>收件人（姓名 電話）<textarea class="list" id="s-rcps"></textarea></label>
+        <label class="full">收件地址<textarea class="list" id="s-addrs"></textarea></label>
+        <label class="full">集運／物流公司（名稱|查詢網址，單號位置用 {num}）<textarea class="list" id="s-carriers"></textarea></label>
+      </div>
     </div>
   </section>
 </main>
@@ -258,9 +339,9 @@
     <label>WHO<select id="o-who" onchange="whoChange()"></select>
       <span id="o-newwho" class="hide" style="display:flex;gap:6px"><input id="o-newwho-in" placeholder="新人員名稱"><button type="button" class="btn sm" onclick="addPersonInline()">加入</button></span></label>
     <label class="full">品名（可先空白，之後再補）<input id="o-name"></label>
-    <label class="full">運單編號 <b style="color:var(--bad)">＊必填</b><input id="o-track" inputmode="numeric"></label>
+    <label class="full"><span>運單編號 <b style="color:var(--bad)">＊必填</b></span><input id="o-track" inputmode="numeric"></label>
     <label>商品金額 ¥（含運；只幫忙集運的可留空）<input type="number" id="o-cny" step="0.01" inputmode="decimal" oninput="calcOrder()"></label>
-    <label><a href="https://rate.bot.com.tw/xrt/quote/ltm/CNY" target="_blank" rel="noopener" title="開啟臺灣銀行人民幣牌告匯率">匯率 🔗</a> <span id="o-rate-note"></span>
+    <label><span><a href="https://rate.bot.com.tw/xrt/quote/ltm/CNY" target="_blank" rel="noopener" title="開啟臺灣銀行人民幣牌告匯率">匯率 ↗</a> <span id="o-rate-note"></span></span>
       <span style="display:flex;gap:6px"><input type="number" id="o-rate" step="0.001" inputmode="decimal" oninput="rateManual('o');calcOrder()"><button type="button" class="btn sm" onclick="fetchRate('o')">取匯率</button></span></label>
     <label>重量 kg（集運後才知道，可先空白）<input type="number" id="o-weight" step="0.01" inputmode="decimal"></label>
     <label>集運單（待集運請留空）<select id="o-batch"></select></label>
@@ -285,7 +366,7 @@
     <label>計費公斤<input type="number" id="b-kg" step="0.01" oninput="autoShip()" onchange="kgBlank()"></label>
     <label>單價 ¥/kg<input type="number" id="b-unit" step="0.01" oninput="autoShip()"></label>
     <label>運費 ¥<input type="number" id="b-cny" step="0.01" oninput="this.dataset.manual=1;calcBatch()"></label>
-    <label><a href="https://rate.bot.com.tw/xrt/quote/ltm/CNY" target="_blank" rel="noopener" title="開啟臺灣銀行人民幣牌告匯率">匯率 🔗</a> <span id="b-rate-note"></span>
+    <label><span><a href="https://rate.bot.com.tw/xrt/quote/ltm/CNY" target="_blank" rel="noopener" title="開啟臺灣銀行人民幣牌告匯率">匯率 ↗</a> <span id="b-rate-note"></span></span>
       <span style="display:flex;gap:6px"><input type="number" id="b-rate" step="0.001" oninput="rateManual('b');calcBatch()"><button type="button" class="btn sm" onclick="fetchRate('b')">取匯率</button></span></label>
     <label>收件人<select id="b-rcp"></select></label>
     <label>收件地址<select id="b-addr"></select></label>
@@ -419,9 +500,10 @@ function showTab(t) {
   curTab = t;
   Array.prototype.forEach.call($('nav').children, function (b) { b.classList.toggle('on', b.getAttribute('data-t') === t); });
   ['orders', 'batches', 'settle', 'pay', 'set'].forEach(function (k) { $('t-' + k).classList.toggle('hide', k !== t); });
+  window.scrollTo(0, 0);
 }
 $('nav').addEventListener('click', function (e) {
-  var t = e.target.getAttribute && e.target.getAttribute('data-t'); if (!t) return;
+  var b = e.target.closest && e.target.closest('button'), t = b && b.getAttribute('data-t'); if (!t) return;
   showTab(t);
 });
 
@@ -444,7 +526,7 @@ function renderOrders() {
   Object.keys(SEL).forEach(function (id) { var o = D.orders.filter(function (x) { return x.id === id; })[0]; if (!o || missing(o).length) delete SEL[id]; });
   var pend = D.orders.filter(function (o) { return o.batch === ''; }), pk = 0, pn = 0;
   pend.forEach(function (o) { if (noW(o)) pn++; else pk += Number(o.weight); });
-  $('o-pending').innerHTML = '📦 待集運：<b>' + pend.length + '</b> 筆，已知重量 <b>' + fmt(pk, 1) + '</b> kg' + (pn ? '，<span class="warn">' + pn + ' 筆還沒填重量</span>' : '');
+  $('o-pending').innerHTML = '待集運 <b>' + pend.length + '</b> 筆，已知重量 <b>' + fmt(pk, 1) + '</b> kg' + (pn ? '，<span class="warn">' + pn + ' 筆還沒填重量</span>' : '');
   var rows = D.orders.filter(function (o) {
     if (st && o.status !== st) return false;
     if (who && o.who !== who) return false;
@@ -752,16 +834,19 @@ function delBatch(name) {
 /* ---------- 結算 ---------- */
 function renderSettle() {
   var S = D.settings, st = D.settle, R = Math.round;      // 結算金額：台幣四捨五入到整數
-  var h = '<tr><th>人員</th><th class="n">應付（已集運）</th><th class="n">已付</th><th class="n">未付</th><th class="n">待出貨商品（未計運費）</th><th></th></tr>';
-  var tDue = 0, tPaid = 0, tUn = 0, tPend = 0;
+  var tDue = 0, tPaid = 0, tUn = 0, tPend = 0, h = '';
   st.persons.forEach(function (p) {
     var due = R(p.due), paid = R(p.paid), pend = R(p.pending), isNum = typeof p.unpaid === 'number', un = due - paid;
     tDue += due; tPaid += paid; tPend += pend; if (isNum) tUn += un;
-    var uh = isNum ? '<b class="' + (un > 0 ? 'bad' : 'ok') + '">' + fmt(un, 0) + '</b>' : '<span class="muted">' + esc(p.unpaid) + '</span>';
-    h += '<tr><td>' + whoTag(p.who) + '</td><td class="n">' + fmt(due, 0) + '</td><td class="n">' + fmt(paid, 0) + '</td><td class="n">' + uh + '</td><td class="n">' + fmt(pend, 0) + '</td><td><button class="btn sm pri" data-w="' + esc(p.who) + '" onclick="openStmt(this.dataset.w)">📄 對帳單</button></td></tr>';
+    h += '<div class="kpi"><div class="kh">' + whoTag(p.who) + '<button class="btn sm" data-w="' + esc(p.who) + '" onclick="openStmt(this.dataset.w)">對帳單</button></div>' +
+      '<div><div class="kl">' + (isNum ? '未付' : '代墊人，不用收款') + '</div><div class="kv ' + (isNum ? (un > 0 ? 'bad' : 'ok') : 'muted') + '">' + (isNum ? fmt(un, 0) : '—') + '</div></div>' +
+      '<div class="kr"><span>應付</span><b>' + fmt(due, 0) + '</b></div><div class="kr"><span>已付</span><b>' + fmt(paid, 0) + '</b></div>' +
+      (pend ? '<div class="kr"><span>待出貨（未計運費）</span><b>' + fmt(pend, 0) + '</b></div>' : '') + '</div>';
   });
-  h += '<tr><td><b>合計</b></td><td class="n"><b>' + fmt(tDue, 0) + '</b></td><td class="n"><b>' + fmt(tPaid, 0) + '</b></td><td class="n"><b>' + fmt(tUn, 0) + '</b></td><td class="n"><b>' + fmt(tPend, 0) + '</b></td><td></td></tr>';
-  $('s-table').innerHTML = h;
+  h += '<div class="kpi tot"><div class="kh"><b>合計</b></div><div><div class="kl">未付</div><div class="kv">' + fmt(tUn, 0) + '</div></div>' +
+    '<div class="kr"><span>應付</span><b>' + fmt(tDue, 0) + '</b></div><div class="kr"><span>已付</span><b>' + fmt(tPaid, 0) + '</b></div>' +
+    (tPend ? '<div class="kr"><span>待出貨</span><b>' + fmt(tPend, 0) + '</b></div>' : '') + '</div>';
+  $('s-cards').innerHTML = h;
   var ok = Math.abs(st.check) < 0.5;
   $('s-check').innerHTML = ok ? '<span class="ok">✔ 核對無誤（所有訂單總額 = 已集運 + 待出貨）</span>' :
     '<span class="bad">⚠ 核對差 ' + fmt(st.check) + '：可能有 WHO 不在人員清單，或訂單的集運單名稱不存在</span>';
