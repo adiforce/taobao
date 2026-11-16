@@ -764,7 +764,7 @@ function batchDetail(b) {
     });
     h += '</table>';
   });
-  h += '<div style="margin:10px 0"><b>集運單合計 ' + fmt(gt) + '</b>（其中運費 ' + fmt(b.twd) + '）　<button class="btn sm" data-b="' + esc(b.name) + '" onclick="batchShip(this.dataset.b)">📋 這批出貨資訊</button></div>';
+  h += '<div style="margin:10px 0"><b>集運單合計 ' + fmt(gt) + '</b>（其中運費 ' + fmt(b.twd) + '）　<button class="btn sm" data-b="' + esc(b.name) + '" onclick="batchShip(this.dataset.b)">📋 這批出貨資訊</button> <button class="btn sm" data-b="' + esc(b.name) + '" onclick="copyBatchDetail(this.dataset.b)">📄 複製明細</button></div>';
   return warn + h;
 }
 function batchShip(name) {
@@ -991,6 +991,20 @@ function copyShip() {
 var STMT_WHO = '';
 function openStmt(who) { if (!WITHDONE) { needDone().then(function () { openStmt(who); }); return; } STMT_WHO = who; $('st-who').textContent = '— ' + who; $('st-mode').value = who === D.settings.payer ? 'r5' : 'un'; buildStmt(); openM('m-stmt'); }
 function md(d) { var p = String(d || '').split('-'); return p.length === 3 ? Number(p[1]) + '/' + Number(p[2]) : String(d || ''); }
+function copyBatchDetail(name) {   // 複製集運單明細（Tab 分隔，可直接貼到 Excel／Google 試算表，也能貼 LINE）
+  var b = D.batches.filter(function (x) { return x.name === name; })[0];
+  var rows = D.orders.filter(function (o) { return o.batch === name; });
+  if (!rows.length) { toast('這張集運單沒有訂單', true); return; }
+  var ppl = D.settings.people || [], rank = function (w) { var i = ppl.indexOf(w); return i < 0 ? 99 : i; };
+  rows.sort(function (a, c) { return rank(a.who) - rank(c.who) || (a.who < c.who ? -1 : a.who > c.who ? 1 : 0) || (a.date < c.date ? -1 : 1); });
+  var L = ['集運單 ' + name + (b ? '（' + b.date + '）' : ''), ['人', '品名', '金額', '單號', '重量', '運費'].join('\t')], tw = 0, tk = 0, ts = 0;
+  rows.forEach(function (o) {
+    var a = Number(o.twd) || 0, k = Number(o.weight) || 0, sh = Number(o.ship) || 0; tw += a; tk += k; ts += sh;
+    L.push([o.who, (o.name || '（未填品名）') + (isDy(o) ? '【代運】' : ''), fmt(a), String(o.track || ''), noW(o) ? '' : fmt(k), fmt(sh)].join('\t'));
+  });
+  L.push(['合計', rows.length + ' 件', fmt(tw), '', fmt(tk), fmt(ts)].join('\t'));
+  copyText(L.join('\n')); toast('已複製 ' + rows.length + ' 筆明細');
+}
 function isDy(o) { return Number(o.cny) === 0 && String(o.cny) !== ''; }
 function buildStmt() {
   var who = STMT_WHO, L = [], N = function (x) { return fmt(x, 2); }, I = function (x) { return fmt(Math.round(x), 0); };
