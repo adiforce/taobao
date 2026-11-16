@@ -118,6 +118,11 @@
   #b-table td.bdet { background:#fafaf9; white-space:normal; padding:12px 16px; }
   #b-table td.bdet th, #b-table td.bdet td { white-space:normal; }
   #t-batches .tablewrap { overflow-x:hidden; }
+  th.srt { cursor:pointer; user-select:none; }
+  th.srt:hover { color:var(--text); }
+  th.srt::after { content:" ↕"; color:#d6d3d1; font-weight:400; }
+  th.srt.asc::after { content:" ↑"; color:var(--accent); }
+  th.srt.desc::after { content:" ↓"; color:var(--accent); }
   /* 結算卡片 */
   #t-set { max-width:920px; }
   .kpis { display:grid; grid-template-columns:repeat(auto-fill,minmax(230px,1fr)); gap:12px; margin-bottom:12px; }
@@ -562,7 +567,7 @@ function renderOrders() {
       '<td><span class="tag s-' + esc(o.status) + '">' + esc(o.status) + '</span>' + (isLocked(o) ? ' <span title="已鎖定：要改請先刪除整張集運單">🔒</span>' : '') + '</td><td class="wrap muted mn">' + esc(o.note) + '</td>' +
       '<td><button class="btn sm mtg" onclick="var r=this.closest(\'tr\');if(r.hasAttribute(\'data-open\')){r.removeAttribute(\'data-open\');this.textContent=\'更多 ▾\'}else{r.setAttribute(\'data-open\',1);this.textContent=\'收合 ▴\'}">更多 ▾</button> <button class="btn sm" onclick="openOrder(' + idq + ')">編輯</button> <button class="btn sm" onclick="openSplit(' + idq + ')">拆單</button> <button class="btn sm danger" onclick="delOrder(' + idq + ')">刪</button></td></tr>';
   });
-  $('o-table').innerHTML = h;
+  $('o-table').innerHTML = h; applySort('o-table');
   renderBulk();
 }
 
@@ -696,7 +701,7 @@ function renderBatches() {
     if (OPEN[b.name]) h += '<tr><td colspan="8" class="bdet">' + batchDetail(b) + '</td></tr>';
   });
   if (hidden) h += '<tr><td colspan="8" class="muted" style="text-align:center">已隱藏 ' + hidden + ' 張已完成的集運單（取消上方勾選即可顯示）</td></tr>';
-  $('b-table').innerHTML = h;
+  $('b-table').innerHTML = h; applySort('b-table');
 }
 function batchDone(b) {
   var os = D.orders.filter(function (o) { return o.batch === b.name; });
@@ -865,7 +870,7 @@ function renderSettle() {
   st.matrix.slice().reverse().forEach(function (r) {
     m += '<tr><td>' + esc(r.batch) + '</td>' + st.cols.map(function (c) { var v = r.cells[c]; return '<td class="n">' + (v ? fmt(v) : '<span class="muted">-</span>') + '</td>'; }).join('') + '<td class="n"><b>' + fmt(r.total) + '</b></td></tr>';
   });
-  $('m-table').innerHTML = m;
+  $('m-table').innerHTML = m; applySort('m-table');
   var paidBy = {}; D.payments.forEach(function (p) { var k = p.who + '\u0001' + p.batch; paidBy[k] = (paidBy[k] || 0) + (Number(p.amount) || 0); });
   var who = st.persons.filter(function (p) { return typeof p.unpaid === 'number'; }).map(function (p) { return p.who; });
   var u = '<tr><th>集運單</th><th>人員</th><th class="n">應付</th><th class="n">已付</th><th class="n">未付</th><th></th></tr>', cnt = 0;
@@ -878,7 +883,7 @@ function renderSettle() {
         '<td>' + (un > 0 ? '<button class="btn sm" data-w="' + esc(w) + '" data-b="' + esc(r.batch) + '" data-a="' + Math.round(un) + '" onclick="markPaid(this)">已收</button>' : '<span class="muted">多收</span>') + '</td></tr>';
     });
   });
-  $('u-table').innerHTML = cnt ? u : '<tr><td class="ok">✔ 每個批次都已收齊</td></tr>';
+  $('u-table').innerHTML = cnt ? u : '<tr><td class="ok">✔ 每個批次都已收齊</td></tr>'; applySort('u-table');
 }
 function markPaid(btn) {            // 補登一筆付款：金額預設＝該批未付，可改
   var w = btn.dataset.w, b = btn.dataset.b, a = prompt(w + ' ' + b + '\n已收金額（台幣）：', btn.dataset.a);
@@ -896,7 +901,7 @@ function renderPay() {
     h += '<tr><td>' + esc(p.date) + '</td><td>' + whoTag(p.who) + '</td><td class="n">' + fmt(p.amount, 0) + '</td><td>' + esc(p.method) + '</td><td>' + esc(p.batch) + '</td><td class="wrap muted">' + esc(p.note) + '</td>' +
       '<td><button class="btn sm danger" onclick="delPay(' + p.row + ',\'' + esc(p.who) + '\',' + p.amount + ')">刪</button></td></tr>';
   });
-  $('p-table').innerHTML = h;
+  $('p-table').innerHTML = h; applySort('p-table');
 }
 function addPay() {
   var p = { date: $('p-date').value, who: $('p-who').value, amount: $('p-amt').value, method: $('p-method').value, batch: $('p-batch').value, note: $('p-note').value };
@@ -1081,6 +1086,49 @@ function saveSet() {
 }
 
 document.addEventListener('keydown', function (e) { if (e.key === 'Escape') { closeM('m-order'); closeM('m-batch'); } });
+
+/* ---------- 點表頭排序（再點一次反向，第三次恢復預設） ---------- */
+var SORT = {};
+function cellVal(td, num) {
+  if (!td) return null;
+  var t = td.textContent.replace(/[✎▸▾]/g, '').trim();
+  if (!num) return t === '' || t === '-' ? null : t;
+  var m = t.replace(/,/g, '').match(/-?\d*\.?\d+/);
+  return m ? parseFloat(m[0]) : null;
+}
+function applySort(id) {
+  var t = $(id); if (!t || !t.rows.length) return;
+  var hr = t.rows[0], ths = [].slice.call(hr.children), st = SORT[id];
+  ths.forEach(function (th, i) {
+    var lab = th.textContent.trim(); if (!lab || th.querySelector('input')) return;
+    th.classList.add('srt'); th.setAttribute('data-i', i);
+    th.classList.toggle('asc', !!st && st.i === i && st.d === 1); th.classList.toggle('desc', !!st && st.i === i && st.d === -1);
+  });
+  if (!st) return;
+  var th = ths[st.i]; if (!th) return;
+  var num = th.classList.contains('n'), groups = [], tail = [];
+  [].slice.call(t.rows, 1).forEach(function (r) {
+    var c0 = r.cells[0];
+    if (c0 && c0.colSpan > 1) { if (c0.classList.contains('bdet') && groups.length) groups[groups.length - 1].rows.push(r); else tail.push(r); return; }
+    groups.push({ v: cellVal(r.cells[st.i], num), rows: [r] });
+  });
+  groups.forEach(function (g, k) { g.k = k; });
+  groups.sort(function (a, b) {
+    if (a.v === null || b.v === null) return a.v === b.v ? a.k - b.k : (a.v === null ? 1 : -1);
+    var c = num ? a.v - b.v : String(a.v).localeCompare(String(b.v), 'zh-Hant', { numeric: true });
+    return c ? c * st.d : a.k - b.k;
+  });
+  var p = t.rows[1] ? t.rows[1].parentNode : null; if (!p) return;
+  groups.forEach(function (g) { g.rows.forEach(function (r) { p.appendChild(r); }); });
+  tail.forEach(function (r) { p.appendChild(r); });
+}
+document.addEventListener('click', function (e) {
+  var th = e.target.closest && e.target.closest('th.srt'); if (!th) return;
+  var t = th.closest('table'), id = t && t.id; if (!id) return;
+  var i = Number(th.getAttribute('data-i')), st = SORT[id];
+  if (!st || st.i !== i) SORT[id] = { i: i, d: 1 }; else if (st.d === 1) st.d = -1; else delete SORT[id];
+  ({ 'o-table': renderOrders, 'b-table': renderBatches, 'p-table': renderPay, 'u-table': renderSettle, 'm-table': renderSettle })[id]();
+});
 
 /* ---------- 啟動 ---------- */
 load();
