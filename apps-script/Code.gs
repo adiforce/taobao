@@ -91,7 +91,7 @@ function getOrders_() {
     return { id: r[0], date: d2s_(r[1]), name: String(r[2]), track: String(r[3]), weight: num_(r[4]),
       who: String(r[5]), cny: num_(r[6]), rate: num_(r[7]), batch: String(r[8]), status: String(r[9]), note: String(r[10]),
       fee1: num_(r[11]), fee2: num_(r[12]), reward: num_(r[13]), twd: num_(r[14]), share: num_(r[15]),
-      ship: num_(r[16]), total: num_(r[17]), dup: r[18] === 'DUP', tb: String(r[19]), r1: r[20] === '' ? null : num_(r[20]), r2: r[21] === '' ? null : num_(r[21]), r3: r[22] === '' ? null : num_(r[22]), row: i + 2 };
+      ship: num_(r[16]), total: num_(r[17]), dup: r[18] === 'DUP', link: String(r[19]), r1: r[20] === '' ? null : num_(r[20]), r2: r[21] === '' ? null : num_(r[21]), r3: r[22] === '' ? null : num_(r[22]), row: i + 2 };
   });
 }
 
@@ -151,7 +151,7 @@ function writeOrder_(s, row, vals, tb) {
   s.getRange(row, 2).setNumberFormat('yyyy/mm/dd');
   s.getRange(row, 4).setNumberFormat('@');         // 運單號 15~16 碼，必須是文字
   s.getRange(row, 1, 1, 11).setValues([vals]);
-  if (tb !== undefined) { var t = s.getRange(row, 20); t.setNumberFormat('@'); t.setValue(String(tb || '').trim()); }   // 淘寶訂單號欄位已不使用；只有拆單時沿用舊值，其餘不動
+  if (tb !== undefined) { var t = s.getRange(row, 20); t.setNumberFormat('@'); t.setValue(String(tb || '').trim()); }   // T 欄＝商品連結（原淘寶訂單號欄，已改用途）
 }
 
 function snap_() {                               // 目前設定的三個費率；新增時寫進該筆，之後改設定不影響舊資料
@@ -167,7 +167,7 @@ function addOrder_(o) {
     var id = 'O' + ('0000' + (max + 1)).slice(-4);
     var row = last + 1;
     ensureRows_(s, row);
-    writeOrder_(s, row, orderRow_(o, id));
+    writeOrder_(s, row, orderRow_(o, id), o.link);
     s.getRange(row, 21, 1, 3).setValues([snap_()]);
     return id;
   });
@@ -181,7 +181,7 @@ function updateOrder_(o) {
     if (row < 0) throw new Error('找不到訂單 ' + o.id + '，請重新整理');
     var cur = s.getRange(row, 3, 1, 8).getValues()[0], curBatch = String(cur[6]), curSt = String(cur[7]);   // C..J → I 批次、J 狀態
     if (LOCKED_.indexOf(curSt) >= 0 && (String(o.status || '') !== curSt || String(o.batch || '') !== curBatch)) throw new Error(lockedMsg_(String(cur[0]), curSt));
-    writeOrder_(s, row, orderRow_(o, o.id));
+    writeOrder_(s, row, orderRow_(o, o.id), o.link);
     return true;
   });
 }

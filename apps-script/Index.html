@@ -128,7 +128,9 @@
   .clip.open { display:block; -webkit-line-clamp:unset; }
   .oacts { display:flex; gap:4px; justify-content:flex-end; }
   .onlym { display:none; }
-  .dnote .clip { font-weight:400; }
+  .plink { display:inline-flex; align-items:center; justify-content:center; width:20px; height:20px; margin-left:4px; border-radius:6px; background:#eff6ff; color:#2563eb; font-size:12px; font-weight:600; vertical-align:1px; text-decoration:none !important; }
+  .plink:hover { background:#dbeafe; }
+  .nicon { display:inline-flex; align-items:center; justify-content:center; height:20px; padding:0 6px; margin-left:4px; border-radius:6px; background:#f5f5f4; color:#78716c; font-size:11px; font-weight:500; vertical-align:1px; cursor:help; }
   .oacts .btn.sm { padding:0 9px; }
   #o-table th, #o-table td { padding:10px 8px; }
   #o-table td.wrap { min-width:90px; }
@@ -367,6 +369,7 @@
     <label>WHO<select id="o-who" onchange="whoChange()"></select>
       <span id="o-newwho" class="hide" style="display:flex;gap:6px"><input id="o-newwho-in" placeholder="新人員名稱"><button type="button" class="btn sm" onclick="addPersonInline()">加入</button></span></label>
     <label class="full">品名（可先空白，之後再補）<input id="o-name"></label>
+    <label class="full">商品連結（可貼淘寶分享文字，會自動抓網址）<input id="o-link" inputmode="url" placeholder="https://"></label>
     <label class="full"><span>運單編號 <b style="color:var(--bad)">＊必填</b></span><input id="o-track" inputmode="numeric"></label>
     <label>商品金額 ¥（含運；只幫忙集運的可留空）<input type="number" id="o-cny" step="0.01" inputmode="decimal" oninput="calcOrder()"></label>
     <label><span><a href="https://rate.bot.com.tw/xrt/quote/ltm/CNY" target="_blank" rel="noopener" title="開啟臺灣銀行人民幣牌告匯率">匯率 ↗</a> <span id="o-rate-note"></span></span>
@@ -573,7 +576,7 @@ function renderOrders() {
     var lk = linkOf(o.batch), idq = '\'' + esc(o.id) + '\'';
     var miss = missing(o);
     h += '<tr data-k="o"><td class="ck">' + (miss.length ? '<input type="checkbox" disabled title="缺：' + esc(miss.join('、')) + '，補齊後才能勾選">' : '<input type="checkbox"' + (SEL[o.id] ? ' checked' : '') + ' onchange="toggleSel(' + idq + ', this.checked)">') + '</td>' +
-      '<td>' + esc(String(o.date).slice(2)) + '</td><td class="wrap ttl ied" onclick="inlineEdit(this,\'name\',' + idq + ')">' + (String(o.name).trim() ? esc(o.name) : '<span class="warn">未填品名</span>') + dyTag(o) + '<span class="pen">✎</span>' + (o.note ? '<div class="muted sm2 dnote">' + clip(o.note) + '</div>' : '') + (miss.length ? '<div class="bad" style="font-size:12px">缺：' + esc(miss.join('、')) + '</div>' : '') + '</td>' +
+      '<td>' + esc(String(o.date).slice(2)) + '</td><td class="wrap ttl ied" onclick="inlineEdit(this,\'name\',' + idq + ')">' + (String(o.name).trim() ? esc(o.name) : '<span class="warn">未填品名</span>') + dyTag(o) + '<span class="pen">✎</span>' + (o.link ? '<a class="plink" href="' + esc(o.link) + '" target="_blank" rel="noopener" title="開啟商品頁" onclick="event.stopPropagation()">↗</a>' : '') + (o.note ? '<span class="nicon dnote" title="' + esc(o.note) + '" data-n="' + esc(o.note) + '" onclick="event.stopPropagation();toast(this.dataset.n)">註</span>' : '') + (miss.length ? '<div class="bad" style="font-size:12px">缺：' + esc(miss.join('、')) + '</div>' : '') + '</td>' +
       '<td class="wrap' + (String(o.track).trim() && !o.dup ? ' mn' : '') + (o.dup ? ' dup' : '') + '" style="word-break:break-all">' + (String(o.track).trim() ? esc(o.track) : '<span class="warn">未填</span>') + (o.dup ? ' ⚠重複' : '') + '</td>' +
       '<td class="n ied" onclick="inlineEdit(this,\'weight\',' + idq + ')">' + (noW(o) ? (o.batch ? '<span class="warn">未填</span>' : '<span class="muted">-</span>') : fmt(o.weight)) + '<span class="pen">✎</span></td><td>' + whoTag(o.who) + '</td>' +
       '<td class="n mn">' + fmt(o.cny) + '<div class="muted ied" onclick="inlineEdit(this,\'rate\',' + idq + ')">× ' + fmt(o.rate, 3) + '<span class="pen">✎</span></div></td>' +
@@ -602,6 +605,7 @@ function openOrder(id) {
   if (lk) $('o-lock').textContent = '🔒 這筆已是「' + o.status + '」，不能改狀態和集運單。要改請先到「集運單」分頁刪除整張集運單，它會回到「在集運倉」。';
   $('o-date').value = o ? o.date : (editOrderKeep.date || today());
   $('o-name').value = o ? o.name : '';
+  $('o-link').value = o ? (o.link || '') : '';
   $('o-cny').value = o ? o.cny : '';
   $('o-rate').value = o ? o.rate : (editOrderKeep.rate || lastRate || '');
   $('o-rate').dataset.manual = o ? '1' : '';
@@ -613,6 +617,11 @@ function openOrder(id) {
   if (!o) fetchRate('o', true);
 }
 var WHO_COLOR = { JR: '#d3f5d8', Amy: '#ffd9e6', Karrie: '#fff3b0' };   // 各人的標籤底色，要新增人就加在這
+function cleanUrl(t) {             // 從淘寶分享文字中抓出網址；只打網域的自動補 https://
+  t = String(t || '').trim(); if (!t) return '';
+  var m = t.match(/https?:\/\/[^\s「」【】"'<>，。]+/i); if (m) return m[0];
+  return /^[\w-]+(\.[\w-]+)+\//.test(t) ? 'https://' + t : t;
+}
 function dyTag(o) {                // 商品金額 0 ＝ 只幫忙集運（代運）
   return Number(o.cny) === 0 && String(o.cny) !== '' ? ' <span class="tag dy" title="商品金額為 0，只代為集運">代運</span>' : '';
 }
@@ -681,7 +690,7 @@ function calcOrder() {
 }
 function saveOrder() {
   if ($('o-who').value === '__new') { toast('請先按「加入」新增人員，或改選現有人員', true); return; }
-  var o = { id: editId, date: $('o-date').value, name: $('o-name').value, track: $('o-track').value, weight: $('o-weight').value, who: $('o-who').value,
+  var o = { id: editId, date: $('o-date').value, name: $('o-name').value, link: cleanUrl($('o-link').value), track: $('o-track').value, weight: $('o-weight').value, who: $('o-who').value,
     cny: $('o-cny').value, rate: $('o-rate').value, batch: $('o-batch').value, status: $('o-status').value, note: $('o-note').value };
   var again = !editId && $('o-again').checked;
   var tk = String(o.track).trim();
