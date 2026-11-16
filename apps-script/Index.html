@@ -157,9 +157,10 @@
     <div class="card">
       <div class="bar">
         <span class="sbox"><input id="f-q" placeholder="搜尋品名 / 運單 / 備註" oninput="renderOrders()"><button type="button" class="sx" aria-label="清除搜尋" onclick="$('f-q').value='';renderOrders();$('f-q').focus()">✕</button></span>
-        <select id="f-status" onchange="renderOrders()"></select>
+        <select id="f-status" onchange="statusChanged()"></select>
         <select id="f-who" onchange="renderOrders()"></select>
         <select id="f-batch" onchange="renderOrders()"></select>
+        <label><input type="checkbox" id="f-done" onchange="doneToggle()"> 載入已完成資料</label>
         <label><input type="checkbox" id="f-dup" onchange="renderOrders()"> 只看重複運單</label>
         <label><input type="checkbox" id="f-nw" onchange="renderOrders()"> 只看未填重量</label>
         <label><input type="checkbox" id="f-inc" onchange="renderOrders()"> 只看資料不完整</label>
@@ -371,9 +372,16 @@ function openM(id) { $(id).classList.add('on'); }
 function linkOf(batchName) { var b = D.batches.filter(function (x) { return x.name === batchName; })[0]; return b && b.link ? b.link : ''; }
 
 /* ---------- 載入 ---------- */
+var WITHDONE = false;     // 是否連「已完成」的訂單一起載入（預設不載入，比較快）
 function load() {
-  return run('getAll').then(function (d) { D = d; renderAll(); }).catch(function () {});
+  return run('getAll', [WITHDONE]).then(function (d) { D = d; renderAll(); }).catch(function () {});
 }
+function doneToggle() { WITHDONE = $('f-done').checked; load(); }
+function needDone() {       // 某些功能（對帳單、已完成集運單明細）需要完整資料時，自動載入
+  if (WITHDONE) return Promise.resolve();
+  WITHDONE = true; $('f-done').checked = true; return load();
+}
+function statusChanged() { if ($('f-status').value === '已完成' && !WITHDONE) { needDone(); } else renderOrders(); }
 function renderAll() {
   var s = D.settings;
   if (!window.__stInit) { window.__stInit = 1; if (s.statuses.indexOf('在集運倉') >= 0) $('f-status').dataset.def = '在集運倉'; }
@@ -488,7 +496,7 @@ function openOrder(id) {
 function whoChange() { $('o-newwho').classList.toggle('hide', $('o-who').value !== '__new'); if ($('o-who').value === '__new') $('o-newwho-in').focus(); }
 function addPersonInline() {
   var n = $('o-newwho-in').value.trim(); if (!n) return;
-  run('addPerson', [n], '已加入 ' + n).then(function () { return run('getAll'); }).then(function (d) {
+  run('addPerson', [n], '已加入 ' + n).then(function () { return run('getAll', [WITHDONE]); }).then(function (d) {
     D = d; renderAll();
     $('o-who').innerHTML = opts(D.settings.people, null, n) + '<option value="__new">＋ 新增人員…</option>';
     whoChange();
@@ -571,13 +579,16 @@ function renderBatches() {
 }
 function batchDone(b) {
   var os = D.orders.filter(function (o) { return o.batch === b.name; });
-  return os.length > 0 && os.every(function (o) { return o.status === '已完成'; });
+  if (!os.length) return !WITHDONE && b.count > 0;     // 沒載入已完成時：底下訂單全都已完成的集運單，載入的訂單會是 0 筆
+  return os.every(function (o) { return o.status === '已完成'; });
 }
 var OPEN = {}, SHIPIDS = null, BATCH_SEL = null;
 function toggleBatch(name) { if (OPEN[name]) delete OPEN[name]; else OPEN[name] = 1; renderBatches(); }
 function batchDetail(b) {
   var rows = D.orders.filter(function (o) { return o.batch === b.name; }).sort(function (x, y) { return x.row - y.row; });
-  if (!rows.length) return '<span class="muted">這個集運單還沒有品項（到訂單頁勾選訂單後歸入此集運單）</span>';
+  var hid = !WITHDONE && rows.length < b.count;      // 有已完成的訂單沒載入 → 數字會不完整，提醒並提供載入
+  var warn = hid ? '<div class="preview" style="margin:6px 0">⚠ 有 ' + (b.count - rows.length) + ' 筆「已完成」訂單尚未載入，下面的明細與合計不完整。<button class="btn sm" onclick="needDone()">載入已完成資料</button></div>' : '';
+  if (!rows.length) return hid ? warn : '<span class="muted">這個集運單還沒有品項（到訂單頁勾選訂單後歸入此集運單）</span>';
   var groups = {}, seen = [];
   rows.forEach(function (o) { if (!groups[o.who]) { groups[o.who] = []; seen.push(o.who); } groups[o.who].push(o); });
   var people = D.settings.people.filter(function (p) { return groups[p]; }).concat(seen.filter(function (p) { return D.settings.people.indexOf(p) < 0; }));
@@ -596,10 +607,11 @@ function batchDetail(b) {
     h += '</table>';
   });
   h += '<div style="margin:10px 0"><b>集運單合計 ' + fmt(gt) + '</b>（其中運費 ' + fmt(b.twd) + '）　<button class="btn sm" data-b="' + esc(b.name) + '" onclick="batchShip(this.dataset.b)">📋 這批出貨資訊</button></div>';
-  return h;
+  return warn + h;
 }
 function batchShip(name) {
   var b = D.batches.filter(function (x) { return x.name === name; })[0];
+  if (b && !WITHDONE && D.orders.filter(function (o) { return o.batch === name; }).length < b.count) { needDone().then(function () { batchShip(name); }); return; }
   SHIPIDS = D.orders.filter(function (o) { return o.batch === name; }).map(function (o) { return o.id; });
   if (!SHIPIDS.length) { toast('這個集運單沒有品項', true); return; }
   fillRA('sh-rcp', 'sh-addr', b ? b.rcp : '', b ? b.addr : '');
@@ -689,7 +701,7 @@ function saveBatch() {
   }).then(function () { closeM('m-batch'); return load(); }).then(function () { if (newBatch) batchShip(newBatch); }).catch(function () {});
 }
 function delBatch(name) {
-  var cnt = D.orders.filter(function (o) { return o.batch === name; }).length;
+  var bb = D.batches.filter(function (x) { return x.name === name; })[0], cnt = Math.max(D.orders.filter(function (o) { return o.batch === name; }).length, bb ? bb.count : 0);
   if (!confirm('刪除集運單「' + name + '」？' + (cnt ? '\n\n底下 ' + cnt + ' 筆訂單會放回「未集運」，狀態是「集運回台」「已完成」的會還原成「在集運倉」。' : '') + '\n（已登記的付款紀錄不會動）')) return;
   run('deleteBatch', [name], '已刪除').then(load).catch(function () {});
 }
@@ -781,7 +793,7 @@ function copyShip() {
 
 /* ---------- 對帳單（結算頁，貼給對方收錢用） ---------- */
 var STMT_WHO = '';
-function openStmt(who) { STMT_WHO = who; $('st-who').textContent = '— ' + who; buildStmt(); openM('m-stmt'); }
+function openStmt(who) { if (!WITHDONE) { needDone().then(function () { openStmt(who); }); return; } STMT_WHO = who; $('st-who').textContent = '— ' + who; buildStmt(); openM('m-stmt'); }
 function md(d) { var p = String(d || '').split('-'); return p.length === 3 ? Number(p[1]) + '/' + Number(p[2]) : String(d || ''); }
 function buildStmt() {
   var who = STMT_WHO, L = [], N = function (x) { return fmt(x, 2); };

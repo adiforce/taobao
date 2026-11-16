@@ -59,11 +59,13 @@ function withLock_(fn) {
 }
 
 /* ---------- 讀取 ---------- */
-function getAll_() {
+function getAll_(withDone) {
   SpreadsheetApp.flush();
+  var all = getOrders_();
   return {
+    withDone: !!withDone,       // false＝只回傳還沒「已完成」的訂單（資料量小、載入快）
     settings: getSettings_(),
-    orders: getOrders_(),
+    orders: withDone ? all : all.filter(function (o) { return o.status !== '已完成'; }),
     batches: getBatches_(),
     payments: getPayments_(),
     settle: getSettle_()
