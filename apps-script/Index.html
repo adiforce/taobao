@@ -197,6 +197,10 @@
       <div class="tablewrap"><table id="s-table"></table></div>
       <div id="s-check" style="margin-top:8px"></div>
     </div>
+    <div class="card"><b>各批次未付</b>
+      <div class="muted" style="margin:4px 0 8px">收了但還沒登記的，按「已收」就會補登一筆付款（可改金額）。小額差異也可以這樣歸零。</div>
+      <div class="tablewrap"><table id="u-table"></table></div>
+    </div>
     <div class="card"><b>集運單 × 人員分攤（台幣）</b>
       <div class="tablewrap" style="margin-top:8px"><table id="m-table"></table></div>
     </div>
@@ -768,6 +772,24 @@ function renderSettle() {
     m += '<tr><td>' + esc(r.batch) + '</td>' + st.cols.map(function (c) { var v = r.cells[c]; return '<td class="n">' + (v ? fmt(v) : '<span class="muted">-</span>') + '</td>'; }).join('') + '<td class="n"><b>' + fmt(r.total) + '</b></td></tr>';
   });
   $('m-table').innerHTML = m;
+  var paidBy = {}; D.payments.forEach(function (p) { var k = p.who + '\u0001' + p.batch; paidBy[k] = (paidBy[k] || 0) + (Number(p.amount) || 0); });
+  var who = st.persons.filter(function (p) { return typeof p.unpaid === 'number'; }).map(function (p) { return p.who; });
+  var u = '<tr><th>集運單</th><th>人員</th><th class="n">應付</th><th class="n">已付</th><th class="n">未付</th><th></th></tr>', cnt = 0;
+  st.matrix.slice().reverse().forEach(function (r) {
+    who.forEach(function (w) {
+      var due = Number(r.cells[w]) || 0; if (!due) return;
+      var paid = paidBy[w + '\u0001' + r.batch] || 0, un = due - paid; if (Math.abs(un) < 0.5) return;
+      cnt++;
+      u += '<tr><td>' + esc(r.batch) + '</td><td>' + whoTag(w) + '</td><td class="n">' + fmt(due, 0) + '</td><td class="n">' + fmt(paid, 0) + '</td><td class="n"><b class="' + (un > 0 ? 'bad' : 'ok') + '">' + fmt(un, 0) + '</b></td>' +
+        '<td>' + (un > 0 ? '<button class="btn sm" data-w="' + esc(w) + '" data-b="' + esc(r.batch) + '" data-a="' + Math.round(un) + '" onclick="markPaid(this)">已收</button>' : '<span class="muted">多收</span>') + '</td></tr>';
+    });
+  });
+  $('u-table').innerHTML = cnt ? u : '<tr><td class="ok">✔ 每個批次都已收齊</td></tr>';
+}
+function markPaid(btn) {            // 補登一筆付款：金額預設＝該批未付，可改
+  var w = btn.dataset.w, b = btn.dataset.b, a = prompt(w + ' ' + b + '\n已收金額（台幣）：', btn.dataset.a);
+  if (a === null) return; a = Number(String(a).replace(/,/g, '')); if (!a) { toast('金額不正確', true); return; }
+  run('addPayment', [{ date: today(), who: w, amount: a, method: '', batch: b, note: '補登' }], '已登記').then(load).catch(function () {});
 }
 
 /* ---------- 付款 ---------- */
