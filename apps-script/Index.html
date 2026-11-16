@@ -475,12 +475,12 @@ function needDone() {       // 某些功能（對帳單、已完成集運單明�
 function statusChanged() { if ($('f-status').value === '已完成' && !WITHDONE) { needDone(); } else renderOrders(); }
 function renderAll() {
   var s = D.settings;
-  if (!window.__stInit) { window.__stInit = 1; if (s.statuses.indexOf('在集運倉') >= 0) $('f-status').dataset.def = '在集運倉'; }
+  var first = !window.__stInit; window.__stInit = 1;   // 第一次載入：狀態＝全部、集運單＝未集運
   var keep = { st: $('f-status').dataset.def || $('f-status').value, who: $('f-who').value, b: $('f-batch').value, pf: $('p-filter').value };
   $('f-status').innerHTML = opts(s.statuses, '所有狀態', keep.st); delete $('f-status').dataset.def;
   $('f-who').innerHTML = opts(s.people, '所有人', keep.who);
   $('f-batch').innerHTML = '<option value="">所有集運單</option><option value="__none">（未集運）</option>' + D.batches.map(function (b) { return '<option' + (b.name === keep.b ? ' selected' : '') + '>' + esc(b.name) + '</option>'; }).join('');
-  if (keep.b === '__none') $('f-batch').value = '__none';
+  if (first || keep.b === '__none') $('f-batch').value = '__none';
   $('p-who').innerHTML = opts(s.people.filter(function (p) { return p !== s.payer; }));
   $('p-method').innerHTML = opts(s.methods);
   $('p-batch').innerHTML = opts(D.batches.map(function (b) { return b.name; }), '（對應集運單，可空）');
