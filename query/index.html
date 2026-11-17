@@ -191,9 +191,9 @@ function render(b) {
   var h = '<table class="sht"><tr><th>人</th><th>品名</th><th>單號</th><th class="n">重量</th><th class="n">商品</th><th class="n">運費</th><th class="n">小計</th></tr>';
   rows.forEach(function (o) {
     var a = Number(o.twd) || 0, sh = Number(o.ship) || 0, k = Number(o.weight) || 0; tw += a; ts += sh; tk += k;
-    h += '<tr><td>' + whoTag(o.who) + '</td><td>' + esc(o.name || '（未填品名）') + (isDy(o) ? ' <span class="tag dy">代運</span>' : '') + '</td><td class="tk">' + esc(o.track || '') + '</td><td class="n">' + (noW(o) ? '-' : fmt(k)) + '</td><td class="n">' + (isDy(o) ? '<span class="muted">-</span>' : fmt(a)) + '</td><td class="n">' + fmt(sh) + '</td><td class="n"><b>' + fmt(a + sh) + '</b></td></tr>';
+    h += '<tr><td>' + whoTag(o.who) + '</td><td>' + esc(o.name || '（未填品名）') + (isDy(o) ? ' <span class="tag dy">代運</span>' : '') + '</td><td class="tk">' + esc(o.track || '') + '</td><td class="n">' + (noW(o) ? '-' : fmt(k, 1)) + '</td><td class="n">' + (isDy(o) ? '<span class="muted">-</span>' : fmt(a, 0)) + '</td><td class="n">' + fmt(sh, 0) + '</td><td class="n"><b>' + fmt(a + sh, 0) + '</b></td></tr>';
   });
-  h += '<tr class="sum"><td colspan="3">合計 ' + rows.length + ' 件</td><td class="n">' + fmt(tk, 1) + '</td><td class="n">' + fmt(tw) + '</td><td class="n">' + fmt(ts) + '</td><td class="n">' + fmt(tw + ts) + '</td></tr></table>';
+  h += '<tr class="sum"><td colspan="3">合計 ' + rows.length + ' 件</td><td class="n">' + fmt(tk, 1) + '</td><td class="n">' + fmt(tw, 0) + '</td><td class="n">' + fmt(ts, 0) + '</td><td class="n">' + fmt(tw + ts, 0) + '</td></tr></table>';
   var r = '<table class="sht"><tr><th>人</th><th class="n">件</th><th class="n">應付</th></tr>';
   b.persons.forEach(function (p) {
     var due = p.a + p.s, st;
@@ -201,12 +201,12 @@ function render(b) {
     else if (p.paid > 0 && p.paid + 0.5 >= due) st = '<span class="tag paid">✓ 已付款</span>';
     else if (p.paid > 0) st = '<span class="tag unpaid">尚欠 ' + fmt(due - p.paid, 0) + '</span>';
     else st = '<span class="tag unpaid">未付款</span>';
-    r += '<tr><td>' + whoTag(p.who) + '</td><td class="n">' + p.n + '</td><td class="n"><b>' + fmt(due) + '</b><div class="muted sm2">商品 ' + fmt(p.a) + ' ＋ 運 ' + fmt(p.s) + '</div>' +
+    r += '<tr><td>' + whoTag(p.who) + '</td><td class="n">' + p.n + '</td><td class="n"><b>' + fmt(due, 0) + '</b><div class="muted sm2">商品 ' + fmt(p.a, 0) + ' ＋ 運 ' + fmt(p.s, 0) + '</div>' +
       '<div class="sm2">' + st + (p.paid > 0 && !p.payer ? ' <span class="muted">已收 ' + fmt(p.paid, 0) + '</span>' : '') + '</div></td></tr>';
   });
-  r += '</table><table class="sht kv"><tr><td>總商品</td><td class="n">' + fmt(tw) + '</td></tr><tr><td>總運費</td><td class="n">' + fmt(ts) + '</td></tr>' +
+  r += '</table><table class="sht kv"><tr><td>總商品</td><td class="n">' + fmt(tw, 0) + '</td></tr><tr><td>總運費</td><td class="n">' + fmt(ts, 0) + '</td></tr>' +
     (b.kg ? '<tr><td class="muted">計費</td><td class="n muted">' + fmt(b.kg) + ' kg × ¥' + fmt(b.unit) + ' × ' + fmt(b.rate, 3) + '</td></tr>' : '') +
-    '<tr class="sum"><td>合計</td><td class="n">' + fmt(tw + ts) + '</td></tr></table>';
+    '<tr class="sum"><td>合計</td><td class="n">' + fmt(tw + ts, 0) + '</td></tr></table>';
   $('box').innerHTML = '<div id="sheet-cap" class="shtwrap"><div class="shthead"><b>📦 ' + esc(b.name) + '</b><span class="muted">' + esc(b.date || '') + (b.kg ? '　' + fmt(b.kg, 0) + ' kg' : '') + '</span>' + stTag(b.status) + '</div>' +
     '<div class="shtgrid"><div class="shtl">' + h + '</div><div class="shtr">' + r + '</div></div></div>';
   $('box').style.display = ''; $('save').classList.remove('hide'); $('save').disabled = false;
