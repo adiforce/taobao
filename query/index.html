@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>集運單查詢</title>
+<style>
+  :root { --bg:#f5f5f4; --card:#fff; --line:#e7e5e4; --line2:#f0efee; --text:#1c1917; --sub:#78716c; --accent:#ea580c; --ok:#15803d; --ok-s:#ecfdf3; --bad:#dc2626; --warn:#d97706; --r:14px; }
+  * { box-sizing:border-box; }
+  body { margin:0; font-family:-apple-system,BlinkMacSystemFont,"PingFang TC","Noto Sans TC","Microsoft JhengHei",sans-serif; background:var(--bg); color:var(--text); font-size:15px; line-height:1.5; }
+  a { color:#2563eb; text-decoration:none; }
+  main { max-width:1100px; margin:0 auto; padding:20px 16px 60px; }
+  h1 { font-size:20px; margin:4px 0 14px; }
+  .hide { display:none !important; }
+  .muted { color:var(--sub); } .ok { color:var(--ok); } .bad { color:var(--bad); }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:var(--r); padding:16px; margin-bottom:16px; box-shadow:0 1px 8px rgba(28,25,23,.04); }
+  .bar { display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+  select { font:inherit; padding:9px 12px; border:1px solid var(--line); border-radius:10px; background:#fff; min-width:260px; max-width:100%; flex:1; }
+  .btn { font:inherit; padding:9px 16px; border-radius:10px; border:1px solid var(--line); background:#fff; cursor:pointer; }
+  .btn.pri { background:var(--accent); border-color:var(--accent); color:#fff; }
+  .btn:disabled { opacity:.5; }
+  .tag { display:inline-block; padding:2px 9px; border-radius:999px; font-size:12px; font-weight:500; background:#f5f5f4; color:#57534e; white-space:nowrap; }
+  .tag.s-已下單 { background:#eff6ff; color:#1d4ed8; }
+  .tag.s-已出貨 { background:#fff7ed; color:#c2410c; }
+  .tag.s-在集運倉 { background:#fefce8; color:#a16207; }
+  .tag.s-集運回台 { background:#f5f3ff; color:#6d28d9; }
+  .tag.s-已完成 { background:var(--ok-s); color:var(--ok); }
+  .tag.dy { background:#f0f9ff; color:#0369a1; font-size:11px; padding:1px 7px; margin-left:4px; }
+  .tag.paid { background:var(--ok-s); color:var(--ok); }
+  .tag.unpaid { background:#fef2f2; color:var(--bad); }
+  .wtag { display:inline-block; padding:2px 10px; border-radius:999px; font-size:13px; font-weight:500; }
+  table { border-collapse:separate; border-spacing:0; width:100%; }
+  th, td { padding:7px 9px; border-bottom:1px solid var(--line2); text-align:left; white-space:nowrap; vertical-align:middle; }
+  th { background:#fafaf9; color:var(--sub); font-size:12px; font-weight:600; border-bottom:1px solid var(--line); }
+  tr:last-child > td { border-bottom:0; }
+  td.n, th.n { text-align:right; font-variant-numeric:tabular-nums; }
+  .sm2 { font-size:12px; margin-top:2px; }
+  /* 以下與管理後台的「集運單明細表」相同 */
+  .shtwrap { background:#fff; padding:6px 2px; }
+  .shthead { display:flex; gap:12px; align-items:baseline; margin-bottom:10px; font-size:16px; flex-wrap:wrap; }
+  .shtgrid { display:grid; grid-template-columns:minmax(0,1fr) 260px; gap:16px; align-items:start; }
+  table.sht { border:1px solid var(--line); border-radius:10px; overflow:hidden; font-size:13px; margin-bottom:12px; }
+  table.sht td.tk { font-variant-numeric:tabular-nums; color:#57534e; }
+  table.sht tr.sum td { background:#fafaf9; font-weight:700; border-top:1px solid var(--line); }
+  table.sht.kv td:first-child { color:#57534e; }
+  .shtl { overflow-x:auto; }
+  .note { font-size:12px; color:var(--sub); margin-top:8px; }
+  @media (max-width:760px) {
+    main { padding:14px 10px 50px; }
+    .shtgrid { grid-template-columns:1fr; }
+    table.sht th, table.sht td { font-size:12px; padding:6px; }
+  }
+</style>
+</head>
+<body>
+<main>
+  <h1>📦 集運單查詢</h1>
+  <div class="card">
+    <div class="bar">
+      <select id="sel" onchange="pick(this.value)"><option value="">載入中…</option></select>
+      <button class="btn pri hide" id="save" onclick="saveImg()" disabled>存成圖片</button>
+    </div>
+    <div id="meta" class="note"></div>
+  </div>
+  <div id="msg" class="muted"></div>
+  <div class="card" id="box" style="display:none"></div>
+</main>
+
+<script>
+// ↓↓↓ 部署「集運單查詢 API」後，把網頁應用程式網址（/exec 結尾）貼在這裡 ↓↓↓
+var API_URL = '';
+
+var WHO_COLOR = { 'J*': '#d3f5d8', 'A**': '#ffd9e6', 'K*****': '#fff3b0' };   // 遮罩後名字的標籤底色
+var $ = function (id) { return document.getElementById(id); };
+function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]; }); }
+function fmt(n, d) { if (n === '' || n == null || isNaN(n)) return ''; d = d == null ? 2 : d; return Number(n).toLocaleString('zh-TW', { minimumFractionDigits: d, maximumFractionDigits: d }); }
+function whoTag(w) { var c = WHO_COLOR[w]; return c ? '<span class="wtag" style="background:' + c + '">' + esc(w) + '</span>' : esc(w); }
+function stTag(s) { return s ? '<span class="tag s-' + esc(s) + '">' + esc(s) + '</span>' : ''; }
+function isDy(o) { return Number(o.cny) === 0 && String(o.cny) !== ''; }
+function noW(o) { return !(Number(o.weight) > 0); }
+function api(q) {
+  if (!API_URL) return Promise.reject(new Error('尚未設定 API_URL'));
+  return fetch(API_URL + (API_URL.indexOf('?') < 0 ? '?' : '&') + q).then(function (r) { return r.json(); })
+    .then(function (j) { if (!j.ok) throw new Error(j.error || '查詢失敗'); return j; });
+}
+
+var CUR = '';
+api('action=list').then(function (j) {
+  var s = $('sel');
+  s.innerHTML = '<option value="">— 請選擇集運單 —</option>' + j.batches.map(function (b) {
+    return '<option value="' + esc(b.name) + '">' + esc(b.name) + '　' + esc(b.date) + (b.status ? '　【' + esc(b.status) + '】' : '') + '</option>';
+  }).join('');
+  var h = decodeURIComponent((location.hash || '').replace(/^#/, ''));
+  if (h && j.batches.some(function (b) { return b.name === h; })) { s.value = h; pick(h); }
+}).catch(function (e) { $('sel').innerHTML = '<option value="">載入失敗</option>'; $('msg').textContent = '無法取得資料：' + e.message; });
+
+function pick(name) {
+  CUR = name; $('msg').textContent = ''; $('box').style.display = 'none'; $('save').classList.add('hide'); $('meta').innerHTML = '';
+  if (!name) return;
+  history.replaceState(null, '', '#' + encodeURIComponent(name));
+  $('msg').textContent = '查詢中…';
+  api('action=batch&name=' + encodeURIComponent(name)).then(function (b) {
+    if (CUR !== name) return;
+    $('msg').textContent = ''; render(b);
+  }).catch(function (e) { $('msg').textContent = '查詢失敗：' + e.message; });
+}
+
+function render(b) {
+  var rows = b.rows, tw = 0, ts = 0, tk = 0;
+  var h = '<table class="sht"><tr><th>人</th><th>品名</th><th>單號</th><th class="n">重量</th><th class="n">商品</th><th class="n">運費</th><th class="n">小計</th></tr>';
+  rows.forEach(function (o) {
+    var a = Number(o.twd) || 0, sh = Number(o.ship) || 0, k = Number(o.weight) || 0; tw += a; ts += sh; tk += k;
+    h += '<tr><td>' + whoTag(o.who) + '</td><td>' + esc(o.name || '（未填品名）') + (isDy(o) ? ' <span class="tag dy">代運</span>' : '') + '</td><td class="tk">' + esc(o.track || '') + '</td><td class="n">' + (noW(o) ? '-' : fmt(k)) + '</td><td class="n">' + (isDy(o) ? '<span class="muted">-</span>' : fmt(a)) + '</td><td class="n">' + fmt(sh) + '</td><td class="n"><b>' + fmt(a + sh) + '</b></td></tr>';
+  });
+  h += '<tr class="sum"><td colspan="3">合計 ' + rows.length + ' 件</td><td class="n">' + fmt(tk, 1) + '</td><td class="n">' + fmt(tw) + '</td><td class="n">' + fmt(ts) + '</td><td class="n">' + fmt(tw + ts) + '</td></tr></table>';
+  var r = '<table class="sht"><tr><th>人</th><th class="n">件</th><th class="n">應付</th></tr>';
+  b.persons.forEach(function (p) {
+    var due = p.a + p.s, st;
+    if (p.payer) st = '<span class="tag">代墊人</span>';
+    else if (p.paid > 0 && p.paid + 0.5 >= due) st = '<span class="tag paid">✓ 已付款</span>';
+    else if (p.paid > 0) st = '<span class="tag unpaid">尚欠 ' + fmt(due - p.paid, 0) + '</span>';
+    else st = '<span class="tag unpaid">未付款</span>';
+    r += '<tr><td>' + whoTag(p.who) + '</td><td class="n">' + p.n + '</td><td class="n"><b>' + fmt(due) + '</b><div class="muted sm2">商品 ' + fmt(p.a) + ' ＋ 運 ' + fmt(p.s) + '</div>' +
+      '<div class="sm2">' + st + (p.paid > 0 && !p.payer ? ' <span class="muted">已收 ' + fmt(p.paid, 0) + '</span>' : '') + '</div></td></tr>';
+  });
+  r += '</table><table class="sht kv"><tr><td>總商品</td><td class="n">' + fmt(tw) + '</td></tr><tr><td>總運費</td><td class="n">' + fmt(ts) + '</td></tr>' +
+    (b.kg ? '<tr><td class="muted">計費</td><td class="n muted">' + fmt(b.kg) + ' kg × ¥' + fmt(b.unit) + ' × ' + fmt(b.rate, 3) + '</td></tr>' : '') +
+    '<tr class="sum"><td>合計</td><td class="n">' + fmt(tw + ts) + '</td></tr></table>';
+  $('box').innerHTML = '<div id="sheet-cap" class="shtwrap"><div class="shthead"><b>📦 ' + esc(b.name) + '</b><span class="muted">' + esc(b.date || '') + (b.kg ? '　' + fmt(b.kg, 0) + ' kg' : '') + '</span>' + stTag(b.status) + '</div>' +
+    '<div class="shtgrid"><div class="shtl">' + h + '</div><div class="shtr">' + r + '</div></div></div>';
+  $('box').style.display = ''; $('save').classList.remove('hide'); $('save').disabled = false;
+  $('meta').innerHTML = b.link ? '<a href="' + esc(b.link) + '" target="_blank" rel="noopener">查貨態 ↗</a>' : '';
+}
+
+function saveImg() {
+  var btn = $('save'), go = function () {
+    btn.disabled = true; btn.textContent = '產生中…';
+    html2canvas($('sheet-cap'), { backgroundColor: '#ffffff', scale: 2, windowWidth: 1100, onclone: function (d) { var c = d.getElementById('sheet-cap'); c.style.width = '1040px'; c.style.padding = '16px'; } }).then(function (cv) {
+      btn.disabled = false; btn.textContent = '存成圖片';
+      cv.toBlob(function (blob) {
+        var fn = '集運單明細_' + CUR + '.png', file = null;
+        try { file = new File([blob], fn, { type: 'image/png' }); } catch (e) {}
+        if (file && navigator.canShare && navigator.canShare({ files: [file] })) { navigator.share({ files: [file] }).catch(function () {}); return; }
+        var url = URL.createObjectURL(blob), a = document.createElement('a'); a.href = url; a.download = fn; document.body.appendChild(a); a.click(); a.remove();
+      }, 'image/png');
+    }).catch(function (e) { btn.disabled = false; btn.textContent = '存成圖片'; alert('存圖失敗，請直接截圖：' + e); });
+  };
+  if (window.html2canvas) return go();
+  var sc = document.createElement('script'); sc.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
+  sc.onload = go; sc.onerror = function () { alert('載入存圖工具失敗，請直接截圖'); }; document.head.appendChild(sc);
+}
+</script>
+</body>
+</html>
