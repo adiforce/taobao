@@ -5,6 +5,8 @@
  *
  *   ?action=list            → 集運單清單
  *   ?action=batch&name=XXX  → 單張集運單明細
+ *   ?action=people          → 可查詢的人（遮罩後）
+ *   ?action=person&who=A**  → 某人的未付款總額與各集運單明細
  */
 var SS_ID = '';   // 貼上試算表 ID（網址 /d/ 與 /edit 中間那串）
 
@@ -65,9 +67,46 @@ function list_() {
   var os = orders_(), by = {};
   os.forEach(function (o) { if (o.batch) (by[o.batch] = by[o.batch] || []).push(o); });
   var out = batches_().filter(function (b) { return by[b.name]; }).sort(function (a, b) {
-    return a.date < b.date ? 1 : a.date > b.date ? -1 : b.row - a.row;      // 新→舊
+    return a.name < b.name ? 1 : a.name > b.name ? -1 : b.row - a.row;      // 依集運單號 新→舊
   }).map(function (b) { return { name: b.name, date: b.date, kg: b.kg, status: statusOf_(by[b.name]), count: by[b.name].length }; });
   return { batches: out };
+}
+
+function r2_(x) { return Math.round(x * 100) / 100; }
+
+// 可查詢的人（遮罩後；代墊人不用付款，不列出）
+function people2_() {
+  var payer = payer_(), ppl = people_(), seen = {}, list = [];
+  orders_().forEach(function (o) { if (o.who && o.who !== payer && !seen[o.who]) { seen[o.who] = 1; list.push(o.who); } });
+  list.sort(function (a, b) { var i = ppl.indexOf(a), j = ppl.indexOf(b); return (i < 0 ? 99 : i) - (j < 0 ? 99 : j); });
+  return { people: list.map(mask_) };
+}
+
+// 某人的付款狀況：未付總額（取自「結算」分頁）＋各集運單的應付／已付／明細
+function person_(masked) {
+  var payer = payer_(), mine = {};
+  orders_().forEach(function (o) { if (o.who && o.who !== payer && mask_(o.who) === masked) mine[o.who] = 1; });
+  var names = Object.keys(mine);
+  if (!names.length) throw new Error('找不到這個人');
+  var os = orders_().filter(function (o) { return mine[o.who] && o.batch; });
+  var bmap = {}; batches_().forEach(function (b) { bmap[b.name] = b; });
+  var pays = payments_().filter(function (p) { return mine[p.who]; }), paidAll = 0, paidBy = {};
+  pays.forEach(function (p) { paidAll += p.amount; if (p.batch) paidBy[p.batch] = (paidBy[p.batch] || 0) + p.amount; });
+  var g = {}, order = [];
+  os.forEach(function (o) { if (!g[o.batch]) { g[o.batch] = []; order.push(o.batch); } g[o.batch].push(o); });
+  order.sort(function (a, b) { return a < b ? 1 : a > b ? -1 : 0; });          // 集運單號 新→舊
+  var dueAll = 0, inBatchPaid = 0;
+  var batches = order.map(function (n) {
+    var rows = g[n], due = 0;
+    rows.forEach(function (o) { due += num_(o.twd) + num_(o.ship); });
+    var paid = paidBy[n] || 0; dueAll += due; inBatchPaid += paid;
+    return { name: n, date: bmap[n] ? bmap[n].date : '', status: statusOf_(rows), due: r2_(due), paid: r2_(paid), unpaid: r2_(due - paid),
+      rows: rows.map(function (o) { return { name: o.name, track: o.track, weight: o.weight, cny: o.cny === '' ? '' : num_(o.cny), twd: o.twd, ship: o.ship }; }) };
+  });
+  var unpaid = r2_(dueAll - paidAll);                                              // 預設自行加總
+  var st = sh_('結算').getRange(2, 1, 8, 4).getValues();                           // 有「結算」分頁數字就以它為準
+  st.forEach(function (r) { if (mine[String(r[0])] && typeof r[3] === 'number') unpaid = r2_(r[3]); });
+  return { who: masked, due: r2_(dueAll), paid: r2_(paidAll), unpaid: unpaid, otherPaid: r2_(paidAll - inBatchPaid), batches: batches };
 }
 
 function batch_(name) {
@@ -100,6 +139,8 @@ function doGet(e) {
   var p = (e && e.parameter) || {}, out;
   try {
     if (p.action === 'batch') out = batch_(p.name);
+    else if (p.action === 'people') out = people2_();
+    else if (p.action === 'person') out = person_(p.who);
     else out = list_();
     out.ok = true;
   } catch (err) { out = { ok: false, error: String(err.message || err) }; }

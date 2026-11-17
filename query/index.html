@@ -35,6 +35,13 @@
   th { background:#fafaf9; color:var(--sub); font-size:12px; font-weight:600; border-bottom:1px solid var(--line); }
   tr:last-child > td { border-bottom:0; }
   td.n, th.n { text-align:right; font-variant-numeric:tabular-nums; }
+  .tabs { display:flex; gap:6px; margin-bottom:12px; }
+  .tabs button { font:inherit; padding:7px 16px; border-radius:999px; border:1px solid var(--line); background:#fff; color:var(--sub); cursor:pointer; }
+  .tabs button.on { background:var(--text); color:#fff; border-color:var(--text); }
+  .big { display:flex; gap:12px; flex-wrap:wrap; margin:6px 0 14px; }
+  .big > div { flex:1; min-width:120px; border:1px solid var(--line); border-radius:12px; padding:10px 14px; }
+  .big .k { font-size:12px; color:var(--sub); } .big .v { font-size:20px; font-weight:700; font-variant-numeric:tabular-nums; }
+  .bh { display:flex; gap:10px; align-items:baseline; flex-wrap:wrap; margin:14px 0 6px; font-size:14px; }
   .sm2 { font-size:12px; margin-top:2px; }
   /* 以下與管理後台的「集運單明細表」相同 */
   .shtwrap { background:#fff; padding:6px 2px; }
@@ -57,8 +64,11 @@
 <main>
   <h1>📦 集運單查詢</h1>
   <div class="card">
+    <div class="tabs"><button id="t-b" class="on" onclick="mode('b')">依集運單</button><button id="t-p" onclick="mode('p')">依人（查未付款）</button></div>
     <div class="bar">
       <select id="sel" onchange="pick(this.value)"><option value="">載入中…</option></select>
+      <select id="psel" class="hide" onchange="pickP(this.value)"><option value="">— 請選擇人 —</option></select>
+      <label id="paidlab" class="hide muted" style="font-size:13px"><input type="checkbox" id="showpaid" onchange="renderP()"> 也顯示已付清的集運單</label>
       <button class="btn pri hide" id="save" onclick="saveImg()" disabled>存成圖片</button>
     </div>
     <div id="meta" class="note"></div>
@@ -85,20 +95,63 @@ function api(q) {
     .then(function (j) { if (!j.ok) throw new Error(j.error || '查詢失敗'); return j; });
 }
 
-var CUR = '';
+var CUR = '', LABEL = '', PD = null, MODE = 'b';
+function hashSet(v) { history.replaceState(null, '', v ? '#' + v : location.pathname + location.search); }
+function mode(m) {
+  MODE = m; CUR = ''; PD = null; $('msg').textContent = ''; $('box').style.display = 'none'; $('save').classList.add('hide'); $('meta').innerHTML = ''; hashSet('');
+  $('t-b').className = m === 'b' ? 'on' : ''; $('t-p').className = m === 'p' ? 'on' : '';
+  $('sel').classList.toggle('hide', m !== 'b'); $('psel').classList.toggle('hide', m !== 'p'); $('paidlab').classList.toggle('hide', m !== 'p');
+  $('sel').value = ''; $('psel').value = '';
+}
+var H = decodeURIComponent((location.hash || '').replace(/^#/, ''));
 api('action=list').then(function (j) {
   var s = $('sel');
   s.innerHTML = '<option value="">— 請選擇集運單 —</option>' + j.batches.map(function (b) {
-    return '<option value="' + esc(b.name) + '">' + esc(b.name) + '　' + esc(b.date) + (b.status ? '　【' + esc(b.status) + '】' : '') + '</option>';
+    return '<option value="' + esc(b.name) + '">' + esc(b.name) + (b.status ? '　【' + esc(b.status) + '】' : '') + '</option>';
   }).join('');
-  var h = decodeURIComponent((location.hash || '').replace(/^#/, ''));
-  if (h && j.batches.some(function (b) { return b.name === h; })) { s.value = h; pick(h); }
+  if (H && H.indexOf('p/') !== 0) { var n = H.replace(/^b\//, ''); if (j.batches.some(function (b) { return b.name === n; })) { s.value = n; pick(n); } }
 }).catch(function (e) { $('sel').innerHTML = '<option value="">載入失敗</option>'; $('msg').textContent = '無法取得資料：' + e.message; });
+api('action=people').then(function (j) {
+  $('psel').innerHTML = '<option value="">— 請選擇人 —</option>' + j.people.map(function (w) { return '<option value="' + esc(w) + '">' + esc(w) + '</option>'; }).join('');
+  if (H.indexOf('p/') === 0 && j.people.indexOf(H.slice(2)) >= 0) { mode('p'); $('psel').value = H.slice(2); pickP(H.slice(2)); }
+}).catch(function () {});
+
+function pickP(w) {
+  CUR = w; PD = null; $('msg').textContent = ''; $('box').style.display = 'none'; $('save').classList.add('hide'); $('meta').innerHTML = '';
+  if (!w) return;
+  hashSet('p/' + encodeURIComponent(w)); $('msg').textContent = '查詢中…';
+  api('action=person&who=' + encodeURIComponent(w)).then(function (d) {
+    if (CUR !== w) return; $('msg').textContent = ''; PD = d; renderP();
+  }).catch(function (e) { $('msg').textContent = '查詢失敗：' + e.message; });
+}
+function renderP() {
+  var d = PD; if (!d) return;
+  var all = $('showpaid').checked, list = d.batches.filter(function (b) { return all || b.unpaid > 0.5; });
+  var ok = d.unpaid <= 0.5;
+  var h = '<div class="big"><div><div class="k">應付合計</div><div class="v">' + fmt(d.due, 0) + '</div></div><div><div class="k">已付款</div><div class="v ok">' + fmt(d.paid, 0) + '</div></div>' +
+    '<div><div class="k">尚未付款</div><div class="v ' + (ok ? 'ok' : 'bad') + '">' + (ok ? '✓ 已付清' : fmt(d.unpaid, 0)) + '</div></div></div>';
+  if (d.otherPaid > 0.5) h += '<div class="note" style="margin:-6px 0 8px">已付款中有 ' + fmt(d.otherPaid, 0) + ' 未指定集運單，下方各集運單的「尚欠」未扣除這筆。</div>';
+  if (!list.length) h += '<div class="muted" style="padding:10px 0">沒有未付款的集運單 🎉</div>';
+  list.forEach(function (b) {
+    var tw = 0, ts = 0, tk = 0;
+    h += '<div class="bh"><b>📦 ' + esc(b.name) + '</b>' + stTag(b.status) + '<span class="muted">應付 ' + fmt(b.due) + '　已付 ' + fmt(b.paid) + '</span>' +
+      (b.unpaid > 0.5 ? '<span class="tag unpaid">尚欠 ' + fmt(b.unpaid) + '</span>' : '<span class="tag paid">✓ 已付款</span>') + '</div>' +
+      '<div class="shtl"><table class="sht"><tr><th>品名</th><th>單號</th><th class="n">重量</th><th class="n">商品</th><th class="n">運費</th><th class="n">小計</th></tr>';
+    b.rows.forEach(function (o) {
+      var a = Number(o.twd) || 0, sh = Number(o.ship) || 0, k = Number(o.weight) || 0; tw += a; ts += sh; tk += k;
+      h += '<tr><td>' + esc(o.name || '（未填品名）') + (isDy(o) ? ' <span class="tag dy">代運</span>' : '') + '</td><td class="tk">' + esc(o.track || '') + '</td><td class="n">' + (noW(o) ? '-' : fmt(k)) + '</td><td class="n">' + (isDy(o) ? '<span class="muted">-</span>' : fmt(a)) + '</td><td class="n">' + fmt(sh) + '</td><td class="n"><b>' + fmt(a + sh) + '</b></td></tr>';
+    });
+    h += '<tr class="sum"><td colspan="2">合計 ' + b.rows.length + ' 件</td><td class="n">' + fmt(tk, 1) + '</td><td class="n">' + fmt(tw) + '</td><td class="n">' + fmt(ts) + '</td><td class="n">' + fmt(tw + ts) + '</td></tr></table></div>';
+  });
+  $('box').innerHTML = '<div id="sheet-cap" class="shtwrap"><div class="shthead"><b>👤 ' + esc(d.who) + ' 付款明細</b>' + (ok ? '<span class="tag paid">✓ 已付清</span>' : '<span class="tag unpaid">尚欠 ' + fmt(d.unpaid, 0) + '</span>') + '</div>' + h + '</div>';
+  LABEL = '付款明細_' + d.who.replace(/\*/g, '＊');
+  $('box').style.display = ''; $('save').classList.remove('hide'); $('save').disabled = false;
+}
 
 function pick(name) {
   CUR = name; $('msg').textContent = ''; $('box').style.display = 'none'; $('save').classList.add('hide'); $('meta').innerHTML = '';
   if (!name) return;
-  history.replaceState(null, '', '#' + encodeURIComponent(name));
+  hashSet('b/' + encodeURIComponent(name)); LABEL = '集運單明細_' + name;
   $('msg').textContent = '查詢中…';
   api('action=batch&name=' + encodeURIComponent(name)).then(function (b) {
     if (CUR !== name) return;
@@ -139,7 +192,7 @@ function saveImg() {
     html2canvas($('sheet-cap'), { backgroundColor: '#ffffff', scale: 2, windowWidth: 1100, onclone: function (d) { var c = d.getElementById('sheet-cap'); c.style.width = '1040px'; c.style.padding = '16px'; } }).then(function (cv) {
       btn.disabled = false; btn.textContent = '存成圖片';
       cv.toBlob(function (blob) {
-        var fn = '集運單明細_' + CUR + '.png', file = null;
+        var fn = LABEL + '.png', file = null;
         try { file = new File([blob], fn, { type: 'image/png' }); } catch (e) {}
         if (file && navigator.canShare && navigator.canShare({ files: [file] })) { navigator.share({ files: [file] }).catch(function () {}); return; }
         var url = URL.createObjectURL(blob), a = document.createElement('a'); a.href = url; a.download = fn; document.body.appendChild(a); a.click(); a.remove();
