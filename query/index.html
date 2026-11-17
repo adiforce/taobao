@@ -128,22 +128,21 @@ function renderP() {
   var d = PD; if (!d) return;
   var all = $('showpaid').checked, list = d.batches.filter(function (b) { return all || b.unpaid > 0.5; });
   var ok = d.unpaid <= 0.5;
-  var h = '<div class="big"><div><div class="k">應付合計</div><div class="v">' + fmt(d.due, 0) + '</div></div><div><div class="k">已付款</div><div class="v ok">' + fmt(d.paid, 0) + '</div></div>' +
-    '<div><div class="k">尚未付款</div><div class="v ' + (ok ? 'ok' : 'bad') + '">' + (ok ? '✓ 已付清' : fmt(d.unpaid, 0)) + '</div></div></div>';
+  var h = '<div class="big"><div><div class="k">應付</div><div class="v ' + (ok ? 'ok' : 'bad') + '">' + (ok ? '✓ 已付清' : fmt(d.unpaid, 0)) + '</div></div></div>';
   if (d.otherPaid > 0.5) h += '<div class="note" style="margin:-6px 0 8px">已付款中有 ' + fmt(d.otherPaid, 0) + ' 未指定集運單，下方各集運單的「尚欠」未扣除這筆。</div>';
   if (!list.length) h += '<div class="muted" style="padding:10px 0">沒有未付款的集運單 🎉</div>';
   list.forEach(function (b) {
     var tw = 0, ts = 0, tk = 0;
-    h += '<div class="bh"><b>📦 ' + esc(b.name) + '</b>' + stTag(b.status) + '<span class="muted">應付 ' + fmt(b.due) + '　已付 ' + fmt(b.paid) + '</span>' +
-      (b.unpaid > 0.5 ? '<span class="tag unpaid">尚欠 ' + fmt(b.unpaid) + '</span>' : '<span class="tag paid">✓ 已付款</span>') + '</div>' +
+    h += '<div class="bh"><b>📦 ' + esc(b.name) + '</b>' + stTag(b.status) + '<span class="muted">應付 ' + fmt(b.due, 0) + '　已付 ' + fmt(b.paid, 0) + '</span>' +
+      (b.unpaid > 0.5 ? '<span class="tag unpaid">尚欠 ' + fmt(b.unpaid, 0) + '</span>' : '<span class="tag paid">✓ 已付款</span>') + '</div>' +
       '<div class="shtl"><table class="sht"><tr><th>品名</th><th>單號</th><th class="n">重量</th><th class="n">商品</th><th class="n">運費</th><th class="n">小計</th></tr>';
     b.rows.forEach(function (o) {
       var a = Number(o.twd) || 0, sh = Number(o.ship) || 0, k = Number(o.weight) || 0; tw += a; ts += sh; tk += k;
-      h += '<tr><td>' + esc(o.name || '（未填品名）') + (isDy(o) ? ' <span class="tag dy">代運</span>' : '') + '</td><td class="tk">' + esc(o.track || '') + '</td><td class="n">' + (noW(o) ? '-' : fmt(k)) + '</td><td class="n">' + (isDy(o) ? '<span class="muted">-</span>' : fmt(a)) + '</td><td class="n">' + fmt(sh) + '</td><td class="n"><b>' + fmt(a + sh) + '</b></td></tr>';
+      h += '<tr><td>' + esc(o.name || '（未填品名）') + (isDy(o) ? ' <span class="tag dy">代運</span>' : '') + '</td><td class="tk">' + esc(o.track || '') + '</td><td class="n">' + (noW(o) ? '-' : fmt(k, 1)) + '</td><td class="n">' + (isDy(o) ? '<span class="muted">-</span>' : fmt(a, 0)) + '</td><td class="n">' + fmt(sh, 0) + '</td><td class="n"><b>' + fmt(a + sh, 0) + '</b></td></tr>';
     });
-    h += '<tr class="sum"><td colspan="2">合計 ' + b.rows.length + ' 件</td><td class="n">' + fmt(tk, 1) + '</td><td class="n">' + fmt(tw) + '</td><td class="n">' + fmt(ts) + '</td><td class="n">' + fmt(tw + ts) + '</td></tr></table></div>';
+    h += '<tr class="sum"><td colspan="2">合計 ' + b.rows.length + ' 件</td><td class="n">' + fmt(tk, 1) + '</td><td class="n">' + fmt(tw, 0) + '</td><td class="n">' + fmt(ts, 0) + '</td><td class="n">' + fmt(tw + ts, 0) + '</td></tr></table></div>';
   });
-  $('box').innerHTML = '<div id="sheet-cap" class="shtwrap"><div class="shthead"><b>👤 ' + esc(d.who) + ' 付款明細</b>' + (ok ? '<span class="tag paid">✓ 已付清</span>' : '<span class="tag unpaid">尚欠 ' + fmt(d.unpaid, 0) + '</span>') + '</div>' + h + '</div>';
+  $('box').innerHTML = '<div id="sheet-cap" class="shtwrap"><div class="shthead"><b>👤 ' + esc(d.who) + ' 付款明細</b></div>' + h + '</div>';
   LABEL = '付款明細_' + d.who.replace(/\*/g, '＊');
   $('box').style.display = ''; $('save').classList.remove('hide'); $('save').disabled = false;
 }
