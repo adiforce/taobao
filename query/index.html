@@ -16,6 +16,7 @@
   .muted { color:var(--sub); } .ok { color:var(--ok); } .bad { color:var(--bad); }
   .card { background:var(--card); border:1px solid var(--line); border-radius:var(--r); padding:16px; margin-bottom:16px; box-shadow:0 1px 8px rgba(28,25,23,.04); }
   .bar { display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+  input#gin { font:inherit; padding:9px 12px; border:1px solid var(--line); border-radius:10px; flex:1; min-width:0; }
   select { font:inherit; padding:9px 12px; border:1px solid var(--line); border-radius:10px; background:#fff; min-width:260px; max-width:100%; flex:1; }
   .btn { font:inherit; padding:9px 16px; border-radius:10px; border:1px solid var(--line); background:#fff; cursor:pointer; }
   .btn.pri { background:var(--accent); border-color:var(--accent); color:#fff; }
@@ -63,6 +64,12 @@
 <body>
 <main>
   <h1>📦 集運單查詢</h1>
+  <div class="card hide" id="gate" style="max-width:420px">
+    <div style="margin-bottom:10px"><b>請輸入通行碼</b></div>
+    <div class="bar"><input id="gin" type="password" inputmode="numeric" autocomplete="off" placeholder="通行碼" onkeydown="if(event.key==='Enter')enter()"><button class="btn pri" id="gbtn" onclick="enter()">進入</button></div>
+    <div id="gmsg" class="note"></div>
+  </div>
+  <div id="app" class="hide">
   <div class="card">
     <div class="tabs"><button id="t-b" class="on" onclick="mode('b')">依集運單</button><button id="t-p" onclick="mode('p')">依人（查未付款）</button></div>
     <div class="bar">
@@ -75,6 +82,8 @@
   </div>
   <div id="msg" class="muted"></div>
   <div class="card" id="box" style="display:none"></div>
+  <div style="text-align:center;margin-top:20px"><a href="#" class="muted" style="font-size:12px" onclick="logout();return false">登出</a></div>
+  </div>
 </main>
 
 <script>
@@ -89,11 +98,29 @@ function whoTag(w) { var c = WHO_COLOR[w]; return c ? '<span class="wtag" style=
 function stTag(s) { return s ? '<span class="tag s-' + esc(s) + '">' + esc(s) + '</span>' : ''; }
 function isDy(o) { return Number(o.cny) === 0 && String(o.cny) !== ''; }
 function noW(o) { return !(Number(o.weight) > 0); }
+var KEY = '';
+try { KEY = localStorage.getItem('cq_key') || ''; } catch (e) {}
 function api(q) {
   if (!API_URL) return Promise.reject(new Error('尚未設定 API_URL'));
-  return fetch(API_URL + (API_URL.indexOf('?') < 0 ? '?' : '&') + q).then(function (r) { return r.json(); })
-    .then(function (j) { if (!j.ok) throw new Error(j.error || '查詢失敗'); return j; });
+  return fetch(API_URL + (API_URL.indexOf('?') < 0 ? '?' : '&') + q + '&key=' + encodeURIComponent(KEY)).then(function (r) { return r.json(); })
+    .then(function (j) { if (!j.ok) { var e = new Error(j.error || '查詢失敗'); e.code = j.error; throw e; } return j; });
 }
+
+/* ---------- 通行碼 ---------- */
+function gate(msg) { $('app').classList.add('hide'); $('gate').classList.remove('hide'); $('gmsg').textContent = msg || ''; $('gin').focus(); }
+function enter() {
+  var v = $('gin').value.trim(); if (!v) return;
+  KEY = v; $('gmsg').textContent = '驗證中…'; $('gbtn').disabled = true;
+  api('action=list').then(function (j) {
+    try { localStorage.setItem('cq_key', KEY); } catch (e) {}
+    $('gate').classList.add('hide'); $('app').classList.remove('hide'); $('gin').value = ''; boot(j);
+  }).catch(function (e) {
+    $('gbtn').disabled = false; KEY = '';
+    try { localStorage.removeItem('cq_key'); } catch (x) {}
+    gate(e.code === 'AUTH' ? '通行碼不正確' : e.code === 'LOCK' ? '嘗試次數過多，請 10 分鐘後再試' : '連線失敗：' + e.message);
+  });
+}
+function logout() { KEY = ''; try { localStorage.removeItem('cq_key'); } catch (e) {} location.hash = ''; location.reload(); }
 
 var CUR = '', LABEL = '', PD = null, MODE = 'b';
 function hashSet(v) { history.replaceState(null, '', v ? '#' + v : location.pathname + location.search); }
@@ -104,17 +131,18 @@ function mode(m) {
   $('sel').value = ''; $('psel').value = '';
 }
 var H = decodeURIComponent((location.hash || '').replace(/^#/, ''));
-api('action=list').then(function (j) {
+function boot(j) {
   var s = $('sel');
   s.innerHTML = '<option value="">— 請選擇集運單 —</option>' + j.batches.map(function (b) {
     return '<option value="' + esc(b.name) + '">' + esc(b.name) + (b.status ? '　【' + esc(b.status) + '】' : '') + '</option>';
   }).join('');
   if (H && H.indexOf('p/') !== 0) { var n = H.replace(/^b\//, ''); if (j.batches.some(function (b) { return b.name === n; })) { s.value = n; pick(n); } }
-}).catch(function (e) { $('sel').innerHTML = '<option value="">載入失敗</option>'; $('msg').textContent = '無法取得資料：' + e.message; });
 api('action=people').then(function (j) {
   $('psel').innerHTML = '<option value="">— 請選擇人 —</option>' + j.people.map(function (w) { return '<option value="' + esc(w) + '">' + esc(w) + '</option>'; }).join('');
   if (H.indexOf('p/') === 0 && j.people.indexOf(H.slice(2)) >= 0) { mode('p'); $('psel').value = H.slice(2); pickP(H.slice(2)); }
 }).catch(function () {});
+}
+if (KEY) { $('gin').value = KEY; enter(); } else gate();
 
 function pickP(w) {
   CUR = w; PD = null; $('msg').textContent = ''; $('box').style.display = 'none'; $('save').classList.add('hide'); $('meta').innerHTML = '';

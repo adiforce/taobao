@@ -1,6 +1,7 @@
 /**
  * 集運單查詢 - 公開「唯讀」API（獨立 Apps Script 專案，跟管理後台分開）
  * 只提供讀取，沒有任何寫入功能；姓名在這裡就遮罩（真名不會離開試算表）。
+ * 所有請求都要帶通行碼 key＝「設定」分頁收件人欄裡任一支電話（伺服器端比對，網頁本身不含密碼）。
  * 部署：網頁應用程式 → 執行身分「我」、存取權「任何人」
  *
  *   ?action=list            → 集運單清單
@@ -135,9 +136,30 @@ function batch_(name) {
   };
 }
 
+/* ---------- 通行碼：用「設定」分頁收件人欄（J 欄，格式「姓名 電話」）裡的任何一支電話 ---------- */
+function digits_(t) { return String(t || '').replace(/\D/g, ''); }
+function normPhone_(d) { return d.indexOf('886') === 0 ? '0' + d.slice(3) : d; }   // +886912… → 0912…
+function phones_() {
+  var out = [];
+  sh_('設定').getRange(2, 10, 20, 1).getValues().forEach(function (r) {
+    var m = String(r[0] || '').match(/\+?\d[\d\- ]{6,}\d/);                       // 抓出像電話的數字串
+    if (m) { var d = normPhone_(digits_(m[0])); if (d.length >= 8) out.push(d); }
+  });
+  return out;
+}
+function auth_(key) {
+  var cache = CacheService.getScriptCache(), bad = Number(cache.get('badtry') || 0);
+  if (bad >= 20) throw new Error('LOCK');                                           // 10 分鐘內錯 20 次就暫停
+  var d = normPhone_(digits_(key));
+  if (d.length >= 8 && phones_().indexOf(d) >= 0) return;
+  cache.put('badtry', String(bad + 1), 600);
+  throw new Error('AUTH');
+}
+
 function doGet(e) {
   var p = (e && e.parameter) || {}, out;
   try {
+    auth_(p.key);
     if (p.action === 'batch') out = batch_(p.name);
     else if (p.action === 'people') out = people2_();
     else if (p.action === 'person') out = person_(p.who);
