@@ -174,13 +174,19 @@ function addOrder_(o) {
 }
 
 var LOCKED_ = ['集運回台', '已完成'];     // 這兩個狀態的訂單不能改狀態／集運單；要改只能刪除整張集運單
+function lockBlocks_(curSt, curBatch, newSt, newBatch) {   // 鎖定的訂單只放行「集運回台 → 已完成」（集運單不變）
+  if (LOCKED_.indexOf(curSt) < 0) return false;
+  if (String(newBatch) !== String(curBatch)) return true;
+  if (newSt === curSt) return false;
+  return !(curSt === '集運回台' && newSt === '已完成');
+}
 function lockedMsg_(name, st) { return '「' + name + '」已是「' + st + '」，不能改狀態或集運單；要改請先刪除整張集運單（會回到「在集運倉」）'; }
 function updateOrder_(o) {
   return withLock_(function () {
     var s = sh_('orders'), row = findRow_(s, 1, o.id);
     if (row < 0) throw new Error('找不到訂單 ' + o.id + '，請重新整理');
     var cur = s.getRange(row, 3, 1, 8).getValues()[0], curBatch = String(cur[6]), curSt = String(cur[7]);   // C..J → I 批次、J 狀態
-    if (LOCKED_.indexOf(curSt) >= 0 && (String(o.status || '') !== curSt || String(o.batch || '') !== curBatch)) throw new Error(lockedMsg_(String(cur[0]), curSt));
+    if (lockBlocks_(curSt, curBatch, String(o.status || ''), String(o.batch || ''))) throw new Error(lockedMsg_(String(cur[0]), curSt));
     writeOrder_(s, row, orderRow_(o, o.id), o.link);
     return true;
   });
@@ -262,6 +268,18 @@ function deleteBatch_(name) {      // 刪集運單：底下訂單放回未集運
   });
 }
 
+function doneBatch_(name) {        // 集運單完成：底下還沒「已完成」的訂單一次改成「已完成」
+  return withLock_(function () {
+    if (findRow_(sh_('batches'), 1, name) < 0) throw new Error('找不到集運單 ' + name);
+    var o = sh_('orders'), last = lastRow_(o), n = 0;
+    if (last < 2) return 0;
+    var rng = o.getRange(2, 9, last - 1, 2), v = rng.getValues();            // I 批次、J 狀態
+    v.forEach(function (r) { if (String(r[0]) === name && String(r[1]) !== '已完成') { r[1] = '已完成'; n++; } });
+    if (n) rng.setValues(v);
+    return n;
+  });
+}
+
 /* ---------- 付款紀錄 ---------- */
 function addPayment_(p) {
   return withLock_(function () {
@@ -327,8 +345,8 @@ function bulkAssign_(ids, batch, status) {      // batch: null=不改、''=清�
     var blocked = [];
     for (var k = 0; k < A.length; k++) {                  // 先檢查：已鎖定的訂單不能改狀態／集運單
       if (!want[A[k][0]] || LOCKED_.indexOf(String(v[k][1])) < 0) continue;
-      var chB = batch !== null && batch !== undefined && String(batch) !== String(v[k][0]), chS = status && String(status) !== String(v[k][1]);
-      if (chB || chS) blocked.push(String(A[k][2]) + '（' + v[k][1] + '）');
+      var nb = batch !== null && batch !== undefined ? String(batch) : String(v[k][0]), ns = status ? String(status) : String(v[k][1]);
+      if (lockBlocks_(String(v[k][1]), String(v[k][0]), ns, nb)) blocked.push(String(A[k][2]) + '（' + v[k][1] + '）');
     }
     if (blocked.length) throw new Error('這些訂單已鎖定，不能改狀態或集運單：' + blocked.slice(0, 5).join('、') + (blocked.length > 5 ? ' 等 ' + blocked.length + ' 筆' : '') + '。要改請先刪除整張集運單。');
     for (var i = 0; i < A.length; i++) {
@@ -453,7 +471,7 @@ function setWeights_(list) {                    // 集運後才知道重量：�
 /* ---------- 資料入口（誰能開網頁由部署設定「具有存取權的使用者：只有我」控管） ---------- */
 var API_ = {
   getAll: getAll_, addOrder: addOrder_, updateOrder: updateOrder_, deleteOrder: deleteOrder_,
-  addBatch: addBatch_, updateBatch: updateBatch_, deleteBatch: deleteBatch_,
+  addBatch: addBatch_, updateBatch: updateBatch_, deleteBatch: deleteBatch_, doneBatch: doneBatch_,
   addPayment: addPayment_, deletePayment: deletePayment_, saveSettings: saveSettings_,
   addPerson: addPerson_, bulkAssign: bulkAssign_, splitOrder: splitOrder_, setWeights: setWeights_, setName: setName_, setRate: setRate_, getRate: getRate_
 };

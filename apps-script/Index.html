@@ -628,7 +628,7 @@ function openOrder(id) {
   $('o-status').innerHTML = opts(s.statuses, null, o ? o.status : s.statuses[0]);
   var lk = !!(o && isLocked(o));
   $('o-status').disabled = lk; $('o-batch').disabled = lk; $('o-lock').classList.toggle('hide', !lk);
-  if (lk) $('o-lock').textContent = '🔒 這筆已是「' + o.status + '」，不能改狀態和集運單。要改請先到「集運單」分頁刪除整張集運單，它會回到「在集運倉」。';
+  if (lk) $('o-lock').textContent = '🔒 這筆已是「' + o.status + '」，不能改狀態和集運單。收到貨請到「集運單」分頁按「✓ 完成」；要改其他的請先刪除整張集運單，它會回到「在集運倉」。';
   $('o-date').value = o ? o.date : (editOrderKeep.date || today());
   $('o-name').value = o ? o.name : '';
   $('o-link').value = o ? (o.link || '') : '';
@@ -754,7 +754,7 @@ function renderBatches() {
       '<td class="n">' + fmt(b.itemTwd) + '</td><td class="n"><b>' + fmt(b.total) + '</b></td>' +
       '<td>' + (b.link ? '<a href="' + esc(b.link) + '" target="_blank" rel="noopener">查貨態 ↗</a>' + (p && p.car ? '<div class="muted sm2">' + esc(p.car) + ' ' + esc(p.num) + '</div>' : '') : '<span class="muted">-</span>') + '</td>' +
       '<td class="wrap">' + esc(b.rcp) + (b.addr ? '<div class="muted sm2">' + esc(b.addr) + '</div>' : '') + (b.note ? '<div class="muted sm2">' + clip('備註：' + b.note) + '</div>' : '') + '</td>' +
-      '<td><div class="acts"><button class="btn sm" data-b="' + esc(b.name) + '" onclick="batchShip(this.dataset.b)">出貨資訊</button><button class="btn sm" onclick="openBatch(\'' + esc(b.name) + '\')">編輯</button><button class="btn sm danger" onclick="delBatch(\'' + esc(b.name) + '\')">刪</button></div></td></tr>';
+      '<td><div class="acts"><button class="btn sm" data-b="' + esc(b.name) + '" onclick="batchShip(this.dataset.b)">出貨資訊</button>' + (batchDone(b) ? '' : '<button class="btn sm" data-b="' + esc(b.name) + '" onclick="doneBatch(this.dataset.b)">✓ 完成</button>') + '<button class="btn sm" onclick="openBatch(\'' + esc(b.name) + '\')">編輯</button><button class="btn sm danger" onclick="delBatch(\'' + esc(b.name) + '\')">刪</button></div></td></tr>';
     if (OPEN[b.name]) h += '<tr><td colspan="8" class="bdet">' + batchDetail(b) + '</td></tr>';
   });
   if (hidden) h += '<tr><td colspan="8" class="muted" style="text-align:center">已隱藏 ' + hidden + ' 張已完成的集運單（取消上方勾選即可顯示）</td></tr>';
@@ -906,6 +906,12 @@ function delBatch(name) {
   run('deleteBatch', [name], '已刪除').then(load).catch(function () {});
 }
 
+function doneBatch(name) {
+  var n = D.orders.filter(function (o) { return o.batch === name && o.status !== '已完成'; }).length;
+  if (!confirm('集運單「' + name + '」已完成？\n\n底下 ' + n + ' 筆訂單會改成「已完成」。')) return;
+  run('doneBatch', [name], '已完成').then(load).catch(function () {});
+}
+
 /* ---------- 結算 ---------- */
 function renderSettle() {
   var S = D.settings, st = D.settle, R = Math.round;      // 結算金額：台幣四捨五入到整數
@@ -982,7 +988,7 @@ function bulkApply() {
   var ids = Object.keys(SEL), b = $('bulk-batch').value, st = $('bulk-status').value;
   if (b === '__keep' && !st) { toast('請選擇要指派的集運單或狀態', true); return; }
   var batch = b === '__keep' ? null : (b === '__none' ? '' : b);
-  var lockedSel = D.orders.filter(function (o) { return SEL[o.id] && isLocked(o) && ((batch !== null && batch !== o.batch) || (st && st !== o.status)); });
+  var lockedSel = D.orders.filter(function (o) { return SEL[o.id] && isLocked(o) && ((batch !== null && batch !== o.batch) || (st && st !== o.status && !(o.status === '集運回台' && st === '已完成'))); });
   if (lockedSel.length) { toast('這些訂單已鎖定，不能改：' + lockedSel.slice(0, 3).map(function (o) { return o.name + '（' + o.status + '）'; }).join('、') + (lockedSel.length > 3 ? ' …' : '') + '。要改請先刪除整張集運單', true); return; }
   if (batch) {
     var miss = D.orders.filter(function (o) { return SEL[o.id] && noW(o); }).length;
